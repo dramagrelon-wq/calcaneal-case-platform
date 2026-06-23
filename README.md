@@ -33,7 +33,15 @@ This repository currently contains a no-build Progressive Web App prototype:
 
 ## Open the app
 
-Open:
+Public demo:
+
+```text
+https://dramagrelon-wq.github.io/calcaneal-case-platform/
+```
+
+The demo is published with GitHub Pages from the `main` branch.
+
+For local preview, open:
 
 ```text
 index.html
