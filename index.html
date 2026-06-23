@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=13">
+    <link rel="stylesheet" href="styles.css?v=14">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -179,7 +179,7 @@
             </details>
             <details>
               <summary>患者隐私、病例资料与敏感信息保护</summary>
-              <p>病例、影像、随访资料、身份证号、电话、病历号、住院号、面部图像、二维码、检查号、精确日期、罕见身份线索等均可能构成个人信息或敏感个人信息。用户上传、公开、讨论或纳入科研前，应取得必要授权或伦理审批，并完成去标识化处理。公开区和讨论区不得出现可识别患者的信息；医生本地私密随访信息仅供本人随访使用，不应进入公开病例、圈内讨论或科研数据集。</p>
+              <p>病例、影像、随访资料、身份证号、电话、病历号、住院号、面部图像、二维码、检查号、精确日期、罕见身份线索等均可能构成个人信息或敏感个人信息。共享病例、公开区、圈内讨论、普通导出和多中心研究数据不得包含可识别患者的信息。医生因随访需要记录的姓名、电话、身份证号等，应仅保存在“医生本地私密随访信息”栏，由医生本人在当前设备和浏览器内使用，不进入公开病例、圈内讨论、普通导出或科研数据集。正式联网部署前，应进一步落实授权、加密、访问控制、审计和删除机制。</p>
             </details>
             <details>
               <summary>多中心研究与伦理审批</summary>
@@ -284,15 +284,8 @@
               </label>
               <input type="hidden" id="privacyLevel" value="private">
               <label>
-                年龄段
-                <select id="ageBand">
-                  <option value="">未填写</option>
-                  <option>18-30</option>
-                  <option>31-45</option>
-                  <option>46-60</option>
-                  <option>61-75</option>
-                  <option>75+</option>
-                </select>
+                年龄（岁）
+                <input id="ageBand" type="number" min="0" max="120" placeholder="实际年龄">
               </label>
               <label>
                 性别
@@ -385,7 +378,7 @@
             <div class="local-private-panel">
               <div>
                 <h3>医生本地私密随访信息</h3>
-                <p>这些信息只保存在本机浏览器，不进入普通病例导出，也不用于公开、圈内讨论或多中心研究展示。</p>
+                <p>这些信息属于医生本人随访记录，只保存在当前设备和浏览器的本地存储；不进入普通病例导出，也不用于公开、圈内讨论或多中心研究展示。清理浏览器或更换设备可能导致丢失，正式部署时应增加加密、授权和删除机制。</p>
               </div>
               <div class="form-grid">
                 <label>
@@ -436,7 +429,7 @@
                 <label><input type="checkbox" id="hideDates"> 已处理精确日期</label>
                 <label><input type="checkbox" id="hideHospital"> 已遮挡医院/二维码/检查号</label>
                 <label><input type="checkbox" id="hideMetadata"> 上传图像已重新编码</label>
-                <p>公开病例前请再次人工检查。当前原型不适合存放可识别患者资料。</p>
+                <p>公开病例前请再次人工检查。当前原型不适合把可识别患者资料放入共享、公开或科研数据环境；本地私密随访信息应仅由医生本人在本机保存和使用。</p>
               </div>
             </div>
 

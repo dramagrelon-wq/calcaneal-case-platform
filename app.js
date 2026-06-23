@@ -451,6 +451,13 @@ function injuryFieldName(key) {
   }[key];
 }
 
+function exactAgeValue(value = "") {
+  const normalized = String(value ?? "").trim();
+  if (!/^\d{1,3}$/.test(normalized)) return "";
+  const age = Number(normalized);
+  return age >= 0 && age <= 120 ? normalized : "";
+}
+
 function createCase(seed = {}) {
   const id = makeId();
   const mechanismType = seed.mechanismType || mechanismTypeFromValue(seed.mechanism || "");
@@ -459,7 +466,7 @@ function createCase(seed = {}) {
     id,
     code: seed.code || `CF-${new Date().getFullYear()}-${String(state.cases.length + 1).padStart(3, "0")}`,
     privacyLevel: seed.privacyLevel || "private",
-    ageBand: seed.ageBand || "",
+    ageBand: exactAgeValue(seed.age ?? seed.ageBand),
     sex: seed.sex || "",
     side: seed.side || "",
     mechanismType,
@@ -613,6 +620,7 @@ function renderCaseList() {
   const filtered = state.cases.filter((item) => {
     const haystack = [
       item.code,
+      item.ageBand,
       item.side,
       caseMechanismLabel(item),
       combinedInjurySummary(item),
@@ -668,6 +676,7 @@ function renderActiveCase() {
   syncActiveTab();
   els.fields.caseCode.value = current.code;
   els.fields.privacyLevel.value = current.privacyLevel;
+  current.ageBand = exactAgeValue(current.ageBand);
   els.fields.ageBand.value = current.ageBand;
   els.fields.sex.value = current.sex;
   els.fields.side.value = current.side;
@@ -1173,7 +1182,7 @@ function addDemoCase() {
   createCase({
     code: "CF-DEMO-001",
     privacyLevel: "team",
-    ageBand: "46-60",
+    ageBand: "52",
     sex: "不公开",
     side: "右",
     mechanismType: "高处坠落伤",

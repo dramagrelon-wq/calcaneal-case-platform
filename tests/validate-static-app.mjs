@@ -62,6 +62,10 @@ const htmlChecks = [
   "管理员教学申请",
   "多中心研究申请",
   "医生本地私密随访信息",
+  "年龄（岁）",
+  "当前设备和浏览器",
+  "不进入普通病例导出",
+  "正式联网部署前",
   "合并损伤",
   "高处坠落伤",
   "交通伤",
@@ -117,6 +121,7 @@ const appChecks = [
   "data-case-privacy",
   "deleteCase",
   "删除病例",
+  "exactAgeValue",
   "suggestClassification",
   "exportData",
   "importData"
