@@ -1,0 +1,33 @@
+name: Product feedback
+description: Suggest a usability, workflow, teaching, or maintenance improvement.
+title: "[Product] "
+labels: ["product-feedback"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What feels confusing, slow, missing, or hard to use?
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested improvement
+      description: What should be changed?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Case entry
+        - Imaging
+        - Measurement
+        - Classification
+        - Follow-up
+        - Discussion
+        - Administrator teaching
+        - Research workflow
+        - Other

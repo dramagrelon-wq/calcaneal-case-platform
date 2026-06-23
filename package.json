@@ -1,0 +1,11 @@
+{
+  "name": "calcaneal-case",
+  "version": "0.1.0",
+  "private": false,
+  "description": "Open-source calcaneal fracture case entry, imaging, measurement, follow-up, and discussion prototype.",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/validate-static-app.mjs"
+  },
+  "license": "Apache-2.0"
+}

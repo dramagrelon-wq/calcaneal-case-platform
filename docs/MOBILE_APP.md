@@ -1,0 +1,37 @@
+# Mobile App Plan
+
+The first mobile milestone is a Progressive Web App. It keeps the implementation simple while still giving Android and iOS users an app-like entry point.
+
+## Current mobile behavior
+
+- Open the app URL in a mobile browser.
+- Add it to the home screen.
+- Use the camera capture button to photograph radiograph screens.
+- Use local storage for offline drafts.
+- Export/import JSON so data can move between devices before server sync is implemented.
+
+## Android
+
+Android Chrome supports PWA installation from the browser menu. The manifest uses `display: standalone`, an app icon, and a theme color.
+
+## iOS
+
+iOS Safari supports "Add to Home Screen". Service worker behavior depends on iOS version and browser restrictions, but the app shell and local data workflow are designed to work without a build step.
+
+## Native packaging path
+
+When the web prototype is stable, the same interface can be wrapped with Capacitor or rebuilt with React Native/Expo. The shared contract should remain:
+
+- same case JSON model
+- same privacy states
+- same image processing pipeline
+- same measurement and classification records
+- same discussion and follow-up records
+
+Native-only features planned later:
+
+- push notification follow-up reminders
+- secure background sync
+- device-level encrypted storage
+- camera presets for screen-photo capture
+- DICOM viewer integration

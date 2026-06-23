@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#176b6a">
+    <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="styles.css">
+    <title>Calcaneal Case</title>
+  </head>
+  <body>
+    <section class="welcome-screen" id="welcomeScreen" aria-label="跟骨骨折病例平台介绍">
+      <header class="welcome-nav">
+        <div>
+          <p class="eyebrow">跟骨骨折病例平台</p>
+          <strong>Calcaneal Case</strong>
+        </div>
+        <button class="ghost-button" id="welcomeEnterTop">进入病例系统</button>
+      </header>
+
+      <main class="welcome-hero">
+        <section class="welcome-copy">
+          <p class="eyebrow">Case · Imaging · Teaching · Follow-up</p>
+          <h1>把跟骨骨折病例、影像测量和教学讨论放到一个清爽的平台里。</h1>
+          <p>从病例采集、影像矫正、角度测量、分型记录到随访提醒，帮助医生把真实病例变成可以复盘、可以教学、可以科研积累的结构化资料。</p>
+          <div class="welcome-actions">
+            <button class="primary-button" id="welcomeEnterMain">进入病例系统</button>
+            <button class="ghost-button" id="playIntro">播放介绍</button>
+          </div>
+        </section>
+
+        <section class="intro-video" aria-label="平台介绍视频">
+          <div class="video-frame">
+            <div class="video-screen">
+              <div class="intro-media-stage" aria-label="公开影像素材导览">
+                <div class="intro-media-stack">
+                  <img class="intro-media active" data-intro-step="0" src="https://commons.wikimedia.org/wiki/Special:FilePath/CalFrac.png?width=900" alt="跟骨骨折 X 线片">
+                  <img class="intro-media" data-intro-step="1" src="https://commons.wikimedia.org/wiki/Special:FilePath/CalcanealfractCT.png?width=900" alt="跟骨骨折 CT 图像">
+                  <img class="intro-media" data-intro-step="2" src="https://commons.wikimedia.org/wiki/Special:FilePath/Bohler%27s_angle_%28raster%29.jpg?width=900" alt="Böhler 角公开教学图">
+                  <img class="intro-media" data-intro-step="3" src="https://commons.wikimedia.org/wiki/Special:FilePath/Gissane.jpg?width=900" alt="Gissane 角公开教学图">
+                  <img class="intro-media" data-intro-step="4" src="https://commons.wikimedia.org/wiki/Special:FilePath/Calcaneus_animation01.gif" alt="跟骨三维解剖动画">
+                  <div class="media-badge">公开影像素材</div>
+                </div>
+                <div class="media-strip" aria-label="介绍片段">
+                  <button class="media-thumb active" type="button" data-intro-step="0">
+                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/CalFrac.png?width=220" alt="">
+                    <span>骨折 X 线</span>
+                  </button>
+                  <button class="media-thumb" type="button" data-intro-step="1">
+                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/CalcanealfractCT.png?width=220" alt="">
+                    <span>CT 资料</span>
+                  </button>
+                  <button class="media-thumb" type="button" data-intro-step="2">
+                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Bohler%27s_angle_%28raster%29.jpg?width=220" alt="">
+                    <span>Böhler 角</span>
+                  </button>
+                  <button class="media-thumb" type="button" data-intro-step="3">
+                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Gissane.jpg?width=220" alt="">
+                    <span>Gissane 角</span>
+                  </button>
+                  <button class="media-thumb" type="button" data-intro-step="4">
+                    <img src="https://commons.wikimedia.org/wiki/Special:FilePath/Calcaneus_animation01.gif" alt="">
+                    <span>解剖动画</span>
+                  </button>
+                </div>
+              </div>
+              <div class="video-caption">
+                <strong id="introStepTitle">术前 X 线</strong>
+                <span id="introStepText">先把脱敏后的 X 线和 CT 放进同一条病例时间线，后面才能讨论分型、复位和随访。</span>
+              </div>
+              <div class="media-source-row">
+                <span>素材来源：</span>
+                <a href="https://commons.wikimedia.org/wiki/File:CalFrac.png" target="_blank" rel="noreferrer">X 线</a>
+                <a href="https://commons.wikimedia.org/wiki/File:CalcanealfractCT.png" target="_blank" rel="noreferrer">CT</a>
+                <a href="https://commons.wikimedia.org/wiki/File:Bohler%27s_angle_(raster).jpg" target="_blank" rel="noreferrer">Böhler</a>
+                <a href="https://commons.wikimedia.org/wiki/File:Gissane.jpg" target="_blank" rel="noreferrer">Gissane</a>
+                <a href="https://commons.wikimedia.org/wiki/File:Calcaneus_animation01.gif" target="_blank" rel="noreferrer">动画</a>
+              </div>
+            </div>
+            <div class="video-controls">
+              <button class="icon-button" id="introToggle" type="button" aria-label="播放或暂停介绍">
+                <span id="introToggleIcon" aria-hidden="true">▶</span>
+              </button>
+              <div class="intro-progress" aria-hidden="true"><span id="introProgress"></span></div>
+              <span id="introTime">00:00</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="welcome-details" aria-label="平台使用和维护说明">
+          <article>
+            <h2>平台怎么用</h2>
+            <ol>
+              <li>医生完成实名注册和资质审核后进入病例系统。</li>
+              <li>新建病例，选择私有、管理员可见、圈内教学、公开教学或多中心研究。</li>
+              <li>上传术前、术中、术后和随访影像，做四点矫正、黑白增强和角度测量。</li>
+              <li>记录 Essex-Lopresti、Sanders、Zwipp、骨折脱位型和分型补充。</li>
+              <li>管理员或讲师在平台内跟帖讨论，沉淀教学意见和随访结果。</li>
+            </ol>
+          </article>
+          <article>
+            <h2>项目怎么一起维护</h2>
+            <ol>
+              <li>项目负责人每周在 GitHub Issues 发一个小主题。</li>
+              <li>讲师和维护者在 issue 下面评论临床建议、字段建议和隐私风险。</li>
+              <li>只提交脱敏示例、流程建议和界面反馈，不把真实患者资料放进公开仓库。</li>
+              <li>把有效评论整理成下一版任务，让 Codex 帮忙更新原型、文档和测试。</li>
+              <li>每 1-2 周做一次小发布，形成持续维护记录。</li>
+            </ol>
+          </article>
+        </section>
+      </main>
+    </section>
+
+    <section class="access-gate hidden" id="accessGate" aria-label="医生准入审核" role="dialog" aria-modal="true">
+      <form class="access-card" id="doctorAccessForm">
+        <button class="icon-button modal-close" id="closeAccessGate" type="button" aria-label="关闭实名注册窗口">×</button>
+        <div>
+          <p class="eyebrow">Doctor Access</p>
+          <h1>实名制注册与医生准入审核</h1>
+          <p>病例、影像和讨论内容仅面向完成实名制注册和医生资质审核的用户开放。平台内可以使用显示名，但准入资料必须真实。</p>
+        </div>
+        <div class="form-grid">
+          <label>
+            真实姓名
+            <input id="accessDoctorName" required placeholder="真实姓名">
+          </label>
+          <label>
+            平台显示名
+            <input id="accessDisplayName" placeholder="可不显示真实姓名">
+          </label>
+          <label>
+            所在机构
+            <input id="accessInstitution" required placeholder="医院/科室">
+          </label>
+          <label>
+            执业医师证编号
+            <input id="accessLicenseNumber" required placeholder="执业证书编号">
+          </label>
+          <label>
+            职称
+            <select id="accessTitle" required>
+              <option value="">请选择</option>
+              <option>住院医师</option>
+              <option>主治医师</option>
+              <option>副主任医师</option>
+              <option>主任医师</option>
+              <option>其他</option>
+            </select>
+          </label>
+          <label class="file-upload-label">
+            执业医师证
+            <input type="file" id="accessLicenseFile" required accept=".pdf,image/*">
+            <span id="accessLicenseFileName">未上传</span>
+          </label>
+          <label class="file-upload-label">
+            职称证
+            <input type="file" id="accessTitleFile" required accept=".pdf,image/*">
+            <span id="accessTitleFileName">未上传</span>
+          </label>
+        </div>
+        <div class="access-notice">
+          <h3>准入协议与法律告知</h3>
+          <div class="legal-docs" aria-label="准入协议与法律文书">
+            <details open>
+              <summary>实名制注册与医生资质承诺</summary>
+              <p>用户应以本人真实身份注册，并提交真实、完整、有效的执业医师证、职称证、所在机构等资质材料。平台内可使用显示名，但实名资料、证件材料和审核记录将用于准入审核、账号安全、违规调查和必要追责。冒用、出租、出借、伪造、篡改、隐瞒或提交失效资质的，平台可拒绝准入、暂停或终止账号，并保留进一步追责的权利。</p>
+            </details>
+            <details>
+              <summary>平台使用范围与医疗服务边界</summary>
+              <p>本平台定位为医生之间的跟骨骨折病例采集、影像整理、教学讨论、随访管理和科研协作工具。平台内容不面向患者提供诊疗服务，不构成互联网诊疗、远程会诊、处方、医嘱或最终手术决策。用户不得以平台内容替代线下诊疗、病历记录、医院制度、医疗质量安全制度或本人依法执业责任。</p>
+            </details>
+            <details>
+              <summary>患者隐私、病例资料与敏感信息保护</summary>
+              <p>病例、影像、随访资料、身份证号、电话、病历号、住院号、面部图像、二维码、检查号、精确日期、罕见身份线索等均可能构成个人信息或敏感个人信息。用户上传、公开、讨论或纳入科研前，应取得必要授权或伦理审批，并完成去标识化处理。公开区和讨论区不得出现可识别患者的信息；医生本地私密随访信息仅供本人随访使用，不应进入公开病例、圈内讨论或科研数据集。</p>
+            </details>
+            <details>
+              <summary>多中心研究与伦理审批</summary>
+              <p>申请进入多中心研究病例范围的用户，应提交伦理审批、机构资质、研究方案要求的授权或同意文件，并遵守数据最小必要、限定用途、访问控制、审计留痕和撤回/删除机制。未完成伦理和资质审核的病例不得进入科研采纳范围。</p>
+            </details>
+            <details>
+              <summary>内容规范与禁止行为</summary>
+              <p>用户不得发布违法违规、虚假误导、侵犯患者隐私、侵犯他人知识产权、冒用专家身份、诱导患者私下就医、商业推广伪装成临床建议、超范围执业、攻击辱骂、泄露平台数据或破坏系统安全的内容。商业合作内容应明确标识，不得影响病例讨论和医学判断的独立性。</p>
+            </details>
+            <details>
+              <summary>违规处理、留痕与追责</summary>
+              <p>若用户触犯隐私保护、实名资质、医疗伦理、平台安全、科研合规、商业披露或其他底线，平台可采取提醒整改、限制功能、隐藏或删除内容、暂停账号、终止服务、保全证据、通知所在机构、配合监管或司法机关调查等措施。因用户违法违规或违反承诺造成患者、其他医生、平台或第三方损失的，平台保留依法追究责任和要求赔偿的权利。</p>
+            </details>
+          </div>
+          <label class="toggle-row">
+            <input id="accessAgreement" type="checkbox" required>
+            我已阅读并同意实名制注册、资质审核、隐私保护、平台使用边界和违规追责告知
+          </label>
+        </div>
+        <p class="access-warning">正式部署时，这一步必须由服务端保存、审核和放行；前端本地提交只用于原型演示。</p>
+        <div class="access-actions">
+          <button class="primary-button" type="submit">提交资质并进入</button>
+          <span id="accessStatus">未提交</span>
+        </div>
+      </form>
+    </section>
+
+    <div class="app-shell locked" id="appShell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">跟骨骨折病例平台</p>
+          <h1>Calcaneal Case</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-button" id="exportData" title="导出数据" aria-label="导出数据">
+            <span aria-hidden="true">↓</span>
+          </button>
+          <label class="icon-button file-action" title="导入数据" aria-label="导入数据">
+            <span aria-hidden="true">↑</span>
+            <input type="file" id="importData" accept="application/json">
+          </label>
+          <button class="primary-button" id="newCase">新建病例</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="case-panel" aria-label="病例库">
+          <div class="panel-header">
+            <div>
+              <h2>病例库</h2>
+              <p id="caseCount">0 个病例</p>
+            </div>
+            <button class="ghost-button" id="seedDemo">示例</button>
+          </div>
+          <label class="search-box">
+            <span>搜索</span>
+            <input id="caseSearch" type="search" placeholder="编号、标签、分型">
+          </label>
+          <div class="case-list" id="caseList"></div>
+        </aside>
+
+        <section class="content" aria-live="polite">
+          <nav class="tabs" aria-label="功能区">
+            <button class="tab active" data-tab="overview">病例</button>
+            <button class="tab" data-tab="images">影像</button>
+            <button class="tab" data-tab="measure">测量</button>
+            <button class="tab" data-tab="classify">分型</button>
+            <button class="tab" data-tab="followup">随访</button>
+            <button class="tab" data-tab="discussion">讨论</button>
+          </nav>
+
+          <section class="tab-panel active" id="overviewPanel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Case Intake</p>
+                <h2>病例录入与隐私控制</h2>
+              </div>
+              <span class="status-pill" id="privacyPill">私有</span>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                病例编号
+                <input id="caseCode" placeholder="CF-2026-001">
+              </label>
+              <label>
+                病例可见范围
+                <select id="privacyLevel">
+                  <option value="private">私有</option>
+                  <option value="admin">管理员可见</option>
+                  <option value="team">圈内讨论</option>
+                  <option value="public">公开教学</option>
+                  <option value="research">多中心研究</option>
+                </select>
+              </label>
+              <label>
+                年龄段
+                <select id="ageBand">
+                  <option value="">未填写</option>
+                  <option>18-30</option>
+                  <option>31-45</option>
+                  <option>46-60</option>
+                  <option>61-75</option>
+                  <option>75+</option>
+                </select>
+              </label>
+              <label>
+                性别
+                <select id="sex">
+                  <option value="">未填写</option>
+                  <option>男</option>
+                  <option>女</option>
+                  <option>不公开</option>
+                </select>
+              </label>
+              <label>
+                侧别
+                <select id="side">
+                  <option value="">未填写</option>
+                  <option>左</option>
+                  <option>右</option>
+                  <option>双侧</option>
+                </select>
+              </label>
+              <label>
+                受伤机制
+                <input id="mechanism" placeholder="高处坠落、交通伤等">
+              </label>
+              <label class="wide">
+                合并损伤
+                <textarea id="combinedInjury" rows="3" placeholder="脊柱、骨盆、下肢其他骨折或软组织损伤等；没有可留空"></textarea>
+              </label>
+            </div>
+
+            <div class="visibility-guide">
+              <h3>病例可见范围说明</h3>
+              <div class="visibility-options">
+                <article data-visibility-card="private">
+                  <strong>私有</strong>
+                  <p>仅上传医生本人可见，适合个人随访、术后复盘和暂不分享的病例。</p>
+                </article>
+                <article data-visibility-card="admin">
+                  <strong>管理员可见</strong>
+                  <p>上传医生和认证管理员可见，适合希望获得私下教学指导但不想公开的病例。</p>
+                </article>
+                <article data-visibility-card="team">
+                  <strong>圈内教学</strong>
+                  <p>在受限医生圈内讨论和教学，适合已经脱敏、希望获得更多同道意见的病例。</p>
+                </article>
+                <article data-visibility-card="public">
+                  <strong>公开教学</strong>
+                  <p>对通过准入的医生公开展示，适合质量较高、已充分去标识化的教学病例。</p>
+                </article>
+                <article data-visibility-card="research">
+                  <strong>多中心研究</strong>
+                  <p>用于科研病例候选。具体申请流程暂待制定，后续需伦理审批、机构资质和研究规则审核。</p>
+                </article>
+              </div>
+            </div>
+
+            <div class="local-private-panel">
+              <div>
+                <h3>医生本地私密随访信息</h3>
+                <p>这些信息只保存在本机浏览器，不进入普通病例导出，也不用于公开、圈内讨论或多中心研究展示。</p>
+              </div>
+              <div class="form-grid">
+                <label>
+                  姓名
+                  <input id="localPatientName" placeholder="仅医生本人可见">
+                </label>
+                <label>
+                  电话号码
+                  <input id="localPatientPhone" inputmode="tel" placeholder="随访联系电话">
+                </label>
+                <label>
+                  身份证号
+                  <input id="localPatientIdNumber" placeholder="本地保存，不导出">
+                </label>
+                <label>
+                  性别
+                  <select id="localPatientSex">
+                    <option value="">未填写</option>
+                    <option>男</option>
+                    <option>女</option>
+                  </select>
+                </label>
+                <label>
+                  年龄
+                  <input id="localPatientAge" type="number" min="0" max="120" placeholder="实际年龄">
+                </label>
+              </div>
+            </div>
+
+            <div class="comorbidity-panel">
+              <h3>伴发疾病与风险因素</h3>
+              <div class="fragment-checks">
+                <label><input type="checkbox" id="comorbCardio"> 心脑血管疾病</label>
+                <label><input type="checkbox" id="comorbDiabetes"> 糖尿病</label>
+                <label><input type="checkbox" id="comorbSmoking"> 吸烟</label>
+                <label><input type="checkbox" id="comorbFootHistory"> 既往足部疾患</label>
+              </div>
+            </div>
+
+            <div class="note-layout">
+              <label>
+                手术记录
+                <textarea id="threeStepNotes" rows="8" placeholder="记录术前计划、术中处理、固定方式、关键影像和复盘要点"></textarea>
+              </label>
+              <div class="privacy-checklist">
+                <h3>敏感信息隐藏</h3>
+                <label><input type="checkbox" id="hideName"> 已移除姓名/住院号</label>
+                <label><input type="checkbox" id="hideDates"> 已处理精确日期</label>
+                <label><input type="checkbox" id="hideHospital"> 已遮挡医院/二维码/检查号</label>
+                <label><input type="checkbox" id="hideMetadata"> 上传图像已重新编码</label>
+                <p>公开病例前请再次人工检查。当前原型不适合存放可识别患者资料。</p>
+              </div>
+            </div>
+
+            <div class="admin-panel" id="adminPanel">
+              <div>
+                <h3>管理员教学申请</h3>
+                <p>管理员需要经过团队认证。申请人应人品可靠、尊重隐私、教学水平较高，并愿意承担病例指导、内容审核和平台安全责任。</p>
+              </div>
+              <div class="form-grid">
+                <label>
+                  申请理由
+                  <textarea id="adminApplicationReason" rows="3" placeholder="说明教学经验、专业方向和希望承担的管理员工作"></textarea>
+                </label>
+                <label>
+                  教学资历
+                  <textarea id="adminTeachingProfile" rows="3" placeholder="课程、带教、病例讨论、学术任职等"></textarea>
+                </label>
+              </div>
+            </div>
+
+            <div class="research-panel" id="researchPanel">
+              <div>
+                <h3>多中心研究申请</h3>
+                <p>多中心研究流程暂待制定。后续会根据研究方案补充伦理审批、入组标准、数据字段、授权/知情同意、质控和审核流程。</p>
+              </div>
+              <div class="form-grid">
+                <label>
+                  伦理审批编号
+                  <input id="ethicsApprovalId" placeholder="IRB/伦理批件编号">
+                </label>
+                <label class="file-upload-label">
+                  伦理审批文件
+                  <input type="file" id="ethicsApprovalFile" accept=".pdf,image/*">
+                  <span id="ethicsApprovalFileName">未上传</span>
+                </label>
+                <label class="file-upload-label">
+                  资质材料
+                  <input type="file" id="credentialFile" accept=".pdf,image/*">
+                  <span id="credentialFileName">未上传</span>
+                </label>
+              </div>
+            </div>
+          </section>
+
+          <section class="tab-panel" id="imagesPanel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Image Workspace</p>
+                <h2>影像上传、裁剪与增强</h2>
+              </div>
+              <div class="section-actions">
+                <label class="ghost-button file-action">
+                  拍摄采集
+                  <input type="file" id="cameraCapture" accept="image/*" capture="environment">
+                </label>
+                <label class="primary-button file-action">
+                  上传影像
+                  <input type="file" id="imageUpload" accept="image/*" multiple>
+                </label>
+              </div>
+            </div>
+
+            <div class="image-workspace">
+              <div class="canvas-card">
+                <canvas id="imageCanvas" width="960" height="640" aria-label="影像处理画布"></canvas>
+              </div>
+              <div class="tool-panel">
+                <label>
+                  当前影像
+                  <select id="imageSelect"></select>
+                </label>
+                <div class="tool-row">
+                  <button id="autoCrop" class="tool-button">自动裁剪</button>
+                  <button id="squareCrop" class="tool-button">居中方裁</button>
+                  <button id="rotateImage" class="tool-button">旋转</button>
+                  <button id="saveImage" class="tool-button">保存处理</button>
+                </div>
+                <div class="tool-row">
+                  <button id="perspectiveMode" class="tool-button">四点矫正</button>
+                  <button id="applyPerspective" class="tool-button">应用矫正</button>
+                  <button id="resetPerspective" class="tool-button">重置角点</button>
+                </div>
+                <label class="toggle-row">
+                  <input id="blackWhiteMode" type="checkbox">
+                  纯黑白对比
+                </label>
+                <label>
+                  亮度
+                  <input id="brightness" type="range" min="-50" max="50" value="0">
+                </label>
+                <label>
+                  对比度
+                  <input id="contrast" type="range" min="-50" max="80" value="20">
+                </label>
+                <label>
+                  锐化
+                  <input id="sharpen" type="range" min="0" max="3" value="1">
+                </label>
+                <div>
+                  <h3>影像分类</h3>
+                  <p class="helper-text">支持术前 X 线/CT、术中图片、术后 X 线/CT和其他影像资料。</p>
+                  <div id="imageList" class="image-list"></div>
+                </div>
+                <p class="helper-text">上传的普通图片会经 Canvas 重新编码，便于去除常见 EXIF metadata。DICOM 支持将在后续加入。</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="tab-panel" id="measurePanel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Semi-automatic Measurement</p>
+                <h2>角度半自动测量</h2>
+              </div>
+            </div>
+
+            <div class="measurement-grid">
+              <div class="canvas-card">
+                <canvas id="measureCanvas" width="960" height="640" aria-label="角度测量画布"></canvas>
+              </div>
+              <div class="tool-panel">
+                <div class="angle-readout">
+                  <span>当前角度</span>
+                  <strong id="angleValue">--°</strong>
+                </div>
+                <div class="measurement-actions">
+                  <button class="tool-button" data-save-measurement="bohler">记录为 Böhler 角</button>
+                  <button class="tool-button" data-save-measurement="gissane">记录为 Gissane 角</button>
+                  <button class="tool-button" data-save-measurement="hindfoot-varus">记录为轴位内外翻</button>
+                  <button class="tool-button" data-save-measurement="custom">记录为自定义角度</button>
+                </div>
+                <button id="resetPoints" class="tool-button">重置点位</button>
+                <p class="helper-text">依次点击 4 个点：第一条线 2 个点，第二条线 2 个点。系统计算两线夹角，医生确认后记录。</p>
+                <div id="measurementList" class="record-list"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="tab-panel" id="classifyPanel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Classification Assistant</p>
+                <h2>分型建议</h2>
+              </div>
+              <span class="status-pill warning">医生确认</span>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                Essex-Lopresti
+                <select id="essex">
+                  <option value="">待确认</option>
+                  <option>Tongue type</option>
+                  <option>Joint depression type</option>
+                  <option>Comminuted/atypical</option>
+                </select>
+              </label>
+              <label>
+                Sanders
+                <select id="sanders">
+                  <option value="">待确认</option>
+                  <option>I</option>
+                  <option>II</option>
+                  <option>III</option>
+                  <option>IV</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="zwipp-panel">
+              <h3>Zwipp 分型采集</h3>
+              <div class="form-grid">
+                <label>
+                  后跟距关节面骨折
+                  <select id="zwippPosteriorFacet">
+                    <option value="">未判断</option>
+                    <option value="yes">有</option>
+                    <option value="no">无</option>
+                  </select>
+                </label>
+                <label>
+                  中跟距关节面/载距突骨块骨折
+                  <select id="zwippMiddleFacet">
+                    <option value="">未判断</option>
+                    <option value="yes">有</option>
+                    <option value="no">无</option>
+                  </select>
+                </label>
+                <label>
+                  跟骰关节面骨折
+                  <select id="zwippCalcaneocuboid">
+                    <option value="">未判断</option>
+                    <option value="yes">有</option>
+                    <option value="no">无</option>
+                  </select>
+                </label>
+              </div>
+              <div class="fragment-checks">
+                <label><input type="checkbox" id="zwippTuberosity"> 跟骨结节骨块</label>
+                <label><input type="checkbox" id="zwippDepressed"> 塌陷骨块</label>
+                <label><input type="checkbox" id="zwippSustentaculum"> 载距突骨块</label>
+                <label><input type="checkbox" id="zwippAnterolateral"> 前外侧骨块</label>
+                <label><input type="checkbox" id="zwippAnteromedial"> 前内侧骨块</label>
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                骨折脱位型
+                <select id="fractureDislocation">
+                  <option value="">未判断</option>
+                  <option value="yes">是</option>
+                  <option value="no">否</option>
+                </select>
+              </label>
+              <label class="wide">
+                分型补充
+                <textarea id="specialClassification" rows="3" placeholder="对无法归入常见分型的情况进行补充"></textarea>
+              </label>
+            </div>
+
+            <div class="suggestion-box">
+              <h3>系统建议</h3>
+              <p id="classificationSuggestion">补充 Essex-Lopresti、Sanders、Zwipp 和特殊情况后生成建议。</p>
+            </div>
+          </section>
+
+          <section class="tab-panel" id="followupPanel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Follow-up</p>
+                <h2>随访提醒与关键指标</h2>
+              </div>
+              <button class="primary-button" id="addFollowup">添加随访</button>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                默认随访间隔
+                <select id="defaultFollowupInterval">
+                  <option value="2w-6w-3m-6m-12m">术后 2 周、6 周、3 月、6 月、12 月</option>
+                  <option value="monthly-6m">每月一次至 6 月</option>
+                  <option value="quarterly-1y">每 3 月一次至 1 年</option>
+                  <option value="custom">自定义</option>
+                </select>
+              </label>
+              <label>
+                随访时间点
+                <select id="followupStage">
+                  <option>术后 2 周</option>
+                  <option>术后 6 周</option>
+                  <option>术后 3 月</option>
+                  <option>术后 6 月</option>
+                  <option>术后 12 月</option>
+                  <option>自定义</option>
+                </select>
+              </label>
+              <label>
+                提醒日期
+                <input id="followupDueDate" type="date">
+              </label>
+              <label>
+                疼痛评分 VAS
+                <input id="vasScore" type="number" min="0" max="10" placeholder="0-10">
+              </label>
+              <label>
+                功能评分
+                <input id="functionScore" type="number" min="0" max="100" placeholder="AOFAS/自定义">
+              </label>
+              <label>
+                负重状态
+                <select id="weightBearing">
+                  <option>未记录</option>
+                  <option>不负重</option>
+                  <option>部分负重</option>
+                  <option>完全负重</option>
+                </select>
+              </label>
+              <label>
+                随访状态
+                <select id="followupStatus">
+                  <option value="ongoing">继续随访</option>
+                  <option value="completed">随访结束</option>
+                </select>
+              </label>
+              <label>
+                终极指标
+                <select id="finalOutcome">
+                  <option value="">未填写</option>
+                  <option value="fusion">融合</option>
+                  <option value="healed">骨折愈合</option>
+                  <option value="subtalar-arthritis">距下关节炎</option>
+                  <option value="revision">二次手术</option>
+                  <option value="lost">失访</option>
+                </select>
+              </label>
+            </div>
+            <label>
+              特殊情况记录
+              <textarea id="followupNotes" rows="4" placeholder="切口问题、感染、内固定、距下关节炎、二次手术等"></textarea>
+            </label>
+            <div id="followupList" class="record-list"></div>
+          </section>
+
+          <section class="tab-panel" id="discussionPanel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Discussion</p>
+                <h2>病例讨论</h2>
+              </div>
+              <button class="primary-button" id="addComment">发表</button>
+            </div>
+
+            <div class="discussion-composer">
+              <label class="wide">
+                讨论内容
+                <textarea id="commentBody" rows="5" placeholder="术前计划、复位策略、影像判断、术后复盘"></textarea>
+              </label>
+            </div>
+            <div id="commentList" class="comment-list"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <template id="emptyStateTemplate">
+      <div class="empty-state">
+        <h2>先建一个跟骨骨折病例</h2>
+        <p>病例创建后即可上传影像、做角度测量、记录分型建议、安排随访并发起讨论。</p>
+        <button class="primary-button" data-create-case>新建病例</button>
+      </div>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

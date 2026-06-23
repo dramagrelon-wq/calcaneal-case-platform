@@ -1,0 +1,19 @@
+{
+  "name": "Calcaneal Case",
+  "short_name": "Calcaneal",
+  "description": "跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f8f7",
+  "theme_color": "#176b6a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+name: Teaching case idea
+description: Suggest a de-identified calcaneal fracture teaching case idea.
+title: "[Teaching Case] "
+labels: ["teaching-case", "clinical-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not upload identifiable patient information, original patient images, names, phone numbers, ID numbers, inpatient numbers, QR codes, or medical record numbers.
+  - type: textarea
+    id: case_type
+    attributes:
+      label: Case type
+      description: What kind of calcaneal fracture case is this?
+      placeholder: Example: joint depression type with posterior facet collapse
+    validations:
+      required: true
+  - type: textarea
+    id: teaching_value
+    attributes:
+      label: Teaching value
+      description: Why is this case useful for teaching?
+    validations:
+      required: true
+  - type: textarea
+    id: imaging_needed
+    attributes:
+      label: Imaging stages needed
+      description: Preoperative, intraoperative, postoperative, follow-up, or other imaging?
+  - type: textarea
+    id: privacy_notes
+    attributes:
+      label: Privacy notes
+      description: What must be removed or hidden before this can be shared?

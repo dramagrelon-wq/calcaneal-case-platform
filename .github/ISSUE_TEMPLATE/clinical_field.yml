@@ -1,0 +1,32 @@
+name: Clinical field suggestion
+description: Suggest a case-entry, classification, measurement, or follow-up field.
+title: "[Clinical Field] "
+labels: ["clinical-field", "needs-clinical-review"]
+body:
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested field or change
+      placeholder: Example: Add skin and soft tissue condition before surgery.
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: Clinical reason
+      description: Why does this matter in real clinical work?
+    validations:
+      required: true
+  - type: dropdown
+    id: burden
+    attributes:
+      label: Doctor input burden
+      options:
+        - Low
+        - Medium
+        - High
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy or ethics concern
+      description: Does this field increase privacy, ethics, or legal risk?

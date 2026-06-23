@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Calcaneal Case icon">
+  <rect width="512" height="512" rx="96" fill="#176b6a"/>
+  <path d="M108 302c42-54 88-82 139-85 37-2 72 10 103 36 25 21 43 29 54 24 11-6 15-22 13-50 37 24 55 58 51 101-4 37-24 66-60 88-36 21-82 30-138 26-47-4-86-17-118-40-30-22-45-55-44-100z" fill="#e8f5f1"/>
+  <path d="M158 308c38-32 75-48 112-47 34 1 67 15 97 43" fill="none" stroke="#176b6a" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="196" cy="214" r="20" fill="#f7d154"/>
+  <circle cx="328" cy="232" r="20" fill="#f7d154"/>
+</svg>
