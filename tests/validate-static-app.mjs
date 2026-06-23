@@ -81,6 +81,7 @@ const htmlChecks = [
   "cameraCapture",
   "黑白滤镜",
   "四点矫正",
+  "当前图片实际显示边界",
   "恢复原始",
   "后退一步",
   "前进一步",
@@ -122,6 +123,7 @@ const appChecks = [
   "deleteCase",
   "删除病例",
   "exactAgeValue",
+  "clampToImageBounds",
   "suggestClassification",
   "exportData",
   "importData"

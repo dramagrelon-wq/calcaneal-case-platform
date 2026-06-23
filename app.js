@@ -1006,6 +1006,7 @@ function drawProcessedImage(canvas) {
 
 function drawPerspectiveOverlay(canvas) {
   ensurePerspectivePoints();
+  clampPerspectivePoints(canvas);
   const ctx = canvas.getContext("2d");
   ctx.save();
   ctx.lineWidth = 3;
@@ -1051,6 +1052,19 @@ function imageBounds(canvas) {
   } catch {
     return { x: 0, y: 0, width: canvas.width, height: canvas.height };
   }
+}
+
+function clampToImageBounds(point, canvas = els.imageCanvas) {
+  const bounds = imageBounds(canvas);
+  return {
+    x: Math.max(bounds.x, Math.min(bounds.x + bounds.width, point.x)),
+    y: Math.max(bounds.y, Math.min(bounds.y + bounds.height, point.y))
+  };
+}
+
+function clampPerspectivePoints(canvas = els.imageCanvas) {
+  if (perspectivePoints.length !== 4) return;
+  perspectivePoints = perspectivePoints.map((point) => clampToImageBounds(point, canvas));
 }
 
 function applyEnhancement(canvas, x, y, width, height) {
@@ -1831,10 +1845,7 @@ function handlePerspectivePointerDown(event) {
 function handlePerspectivePointerMove(event) {
   if (!perspectiveMode || draggedPerspectivePoint === null) return;
   const point = canvasPoint(els.imageCanvas, event);
-  perspectivePoints[draggedPerspectivePoint] = {
-    x: Math.max(0, Math.min(els.imageCanvas.width, point.x)),
-    y: Math.max(0, Math.min(els.imageCanvas.height, point.y))
-  };
+  perspectivePoints[draggedPerspectivePoint] = clampToImageBounds(point);
   drawEditor();
 }
 
