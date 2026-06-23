@@ -1225,10 +1225,21 @@ textarea:focus {
   gap: 10px;
 }
 
+.measurement-context,
+.ct-measurement-panel {
+  display: grid;
+  gap: 10px;
+}
+
 .measurement-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.measurement-actions .hidden-field,
+.ct-measurement-panel.hidden-field {
+  display: none;
 }
 
 .tool-button:disabled {

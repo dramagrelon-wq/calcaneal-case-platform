@@ -38,7 +38,7 @@ const tutorialGuides = {
   overview: ["Case Intake Guide", "如何录入一个跟骨骨折病例", "先完成病例编号、受伤机制、合并损伤和隐私检查。病例可见范围在左侧病例卡片中选择，字段变更会自动保存，也可以点“保存”手动确认。"],
   classify: ["Classification Guide", "如何完成分型记录", "Essex-Lopresti、Sanders 和 Zwipp 作为同等重要的记录入口填写，最后再补充骨折脱位型和特殊情况。"],
   images: ["Image Workspace Guide", "如何上传和处理影像", "批量上传后先分类，再按单张影像做裁剪、黑白滤镜、亮度、对比度、锐化和四点矫正。操作失误可后退、前进或恢复原始图。"],
-  measure: ["Measurement Guide", "如何做角度测量", "选择影像后依次点击四个点，两点确定第一条线，两点确定第二条线，系统会计算夹角，医生确认后记录到对应角度。"],
+  measure: ["Measurement Guide", "如何做影像测量", "先选择跟骨侧位、跟骨轴位或 CT 层面。侧位记录 Böhler/Gissane，轴位记录内外翻，CT 记录关节面塌陷程度。"],
   followup: ["Follow-up Guide", "如何安排随访", "先设默认随访间隔，再记录提醒日期、VAS、功能评分、负重状态和终极指标。随访结束后仍可保留关键结局。"],
   discussion: ["Discussion Guide", "如何组织病例讨论", "讨论区用于记录术前计划、复位策略、影像判断和术后复盘。公开前仍需确认病例已经充分去标识化。"]
 };
@@ -199,9 +199,16 @@ const els = {
   contrast: $("#contrast"),
   sharpen: $("#sharpen"),
   measureCanvas: $("#measureCanvas"),
+  measurementView: $("#measurementView"),
+  measurementImageSelect: $("#measurementImageSelect"),
+  measurementReadoutLabel: $("#measurementReadoutLabel"),
   angleValue: $("#angleValue"),
   resetPoints: $("#resetPoints"),
   measurementButtons: $$("[data-save-measurement]"),
+  ctMeasurementPanel: $("#ctMeasurementPanel"),
+  ctDepressionValue: $("#ctDepressionValue"),
+  saveCtDepression: $("#saveCtDepression"),
+  measurementHelp: $("#measurementHelp"),
   measurementList: $("#measurementList"),
   classificationSuggestion: $("#classificationSuggestion"),
   defaultFollowupInterval: $("#defaultFollowupInterval"),
@@ -765,9 +772,13 @@ function renderImages() {
 
 function imageCategoryOptions(selected = "other") {
   return [
+    ["preop-lateral-xray", "术前侧位 X 线"],
+    ["preop-axial-xray", "术前轴位 X 线"],
     ["preop-xray", "术前 X 线"],
     ["preop-ct", "术前 CT"],
     ["intraop", "术中图片"],
+    ["postop-lateral-xray", "术后侧位 X 线"],
+    ["postop-axial-xray", "术后轴位 X 线"],
     ["postop-xray", "术后 X 线"],
     ["postop-ct", "术后 CT"],
     ["other", "其他影像资料"]
@@ -776,9 +787,13 @@ function imageCategoryOptions(selected = "other") {
 
 function imageCategoryLabel(value = "other") {
   return {
+    "preop-lateral-xray": "术前侧位 X 线",
+    "preop-axial-xray": "术前轴位 X 线",
     "preop-xray": "术前 X 线",
     "preop-ct": "术前 CT",
     intraop: "术中图片",
+    "postop-lateral-xray": "术后侧位 X 线",
+    "postop-axial-xray": "术后轴位 X 线",
     "postop-xray": "术后 X 线",
     "postop-ct": "术后 CT",
     other: "其他影像资料"
@@ -788,31 +803,94 @@ function imageCategoryLabel(value = "other") {
 function inferImageCategory(fileName = "") {
   const name = fileName.toLowerCase();
   if (/术中|intra|op/.test(name)) return "intraop";
+  if (/术后|post/.test(name) && /轴位|axial|harris/.test(name)) return "postop-axial-xray";
+  if (/术后|post/.test(name) && /侧位|lateral|lat/.test(name)) return "postop-lateral-xray";
   if (/术后|post/.test(name) && /ct/.test(name)) return "postop-ct";
   if (/术后|post/.test(name)) return "postop-xray";
+  if (/术前|pre/.test(name) && /轴位|axial|harris/.test(name)) return "preop-axial-xray";
+  if (/术前|pre/.test(name) && /侧位|lateral|lat/.test(name)) return "preop-lateral-xray";
   if (/术前|pre/.test(name) && /ct/.test(name)) return "preop-ct";
+  if (/轴位|axial|harris/.test(name)) return "preop-axial-xray";
+  if (/侧位|lateral|lat/.test(name)) return "preop-lateral-xray";
   if (/术前|pre|xray|x-ray|dr|片/.test(name)) return "preop-xray";
   if (/ct/.test(name)) return "preop-ct";
   return "other";
 }
 
+function activeMeasurementView() {
+  return els.measurementView?.value || "lateral";
+}
+
+function measurementCategoriesForView(view = activeMeasurementView()) {
+  return {
+    lateral: ["preop-lateral-xray", "postop-lateral-xray", "preop-xray", "postop-xray"],
+    axial: ["preop-axial-xray", "postop-axial-xray", "preop-xray", "postop-xray"],
+    ct: ["preop-ct", "postop-ct"]
+  }[view] || [];
+}
+
+function measurementHelpText(view = activeMeasurementView()) {
+  return {
+    lateral: "跟骨侧位用于 Böhler 角和 Gissane 角：依次点击 4 个点，两点一条线，系统计算两线夹角。",
+    axial: "跟骨轴位用于内外翻测量：在轴位片上依次点击 4 个点，形成两条参考线后记录夹角。",
+    ct: "CT 层面用于记录关节面塌陷程度：可点击 2 个点画辅助线，但最终请按 CT 标尺或工作站读数填写毫米值。"
+  }[view] || "";
+}
+
+function measurementImagesForView(current, view = activeMeasurementView()) {
+  if (!current?.images?.length) return [];
+  const categories = measurementCategoriesForView(view);
+  const matched = current.images.filter((image) => categories.includes(image.category));
+  return matched.length ? matched : current.images;
+}
+
+function syncMeasurementUi(current = activeCase()) {
+  if (!els.measurementView || !els.measurementImageSelect) return;
+  const view = activeMeasurementView();
+  const images = measurementImagesForView(current, view);
+  els.measurementImageSelect.innerHTML = images.length
+    ? images.map((image) => `<option value="${image.id}">${escapeHtml(imageCategoryLabel(image.category))} · ${escapeHtml(image.name)}</option>`).join("")
+    : `<option value="">暂无当前场景影像</option>`;
+  const hasSelected = images.some((image) => image.id === imageEditor.imageId);
+  if (!hasSelected) {
+    imageEditor.imageId = images[0]?.id || current?.images?.[0]?.id || null;
+    imageEditor.img = null;
+  }
+  if (imageEditor.imageId) els.measurementImageSelect.value = imageEditor.imageId;
+  els.measurementButtons.forEach((button) => {
+    const views = (button.dataset.measurementView || "").split(" ");
+    button.classList.toggle("hidden-field", !views.includes(view));
+  });
+  els.ctMeasurementPanel.classList.toggle("hidden-field", view !== "ct");
+  els.measurementReadoutLabel.textContent = view === "ct" ? "当前辅助线" : "当前角度";
+  els.measurementHelp.textContent = measurementHelpText(view);
+}
+
 function renderMeasurements() {
   const current = activeCase();
   if (!current) return;
-  const types = ["bohler", "gissane", "hindfoot-varus", "custom"];
+  syncMeasurementUi(current);
+  const types = ["bohler", "gissane", "hindfoot-varus", "posterior-facet-depression", "custom"];
   els.measurementList.innerHTML = types.map((type) => {
     const records = current.measurements.filter((item) => item.type === type);
     const latest = records[0];
+    const latestValue = measurementValueText(latest);
     return `
       <article class="record-card">
         <strong>${escapeHtml(labelForMeasurement(type))}</strong>
         ${latest ? `
-          <span>${latest.angle.toFixed(1)}° · ${new Date(latest.createdAt).toLocaleString()}</span>
+          <span>${escapeHtml(latestValue)} · ${new Date(latest.createdAt).toLocaleString()}</span>
           <p>${escapeHtml(latest.imageName || "未绑定影像")}</p>
         ` : `<p>暂无记录</p>`}
       </article>
     `;
   }).join("");
+}
+
+function measurementValueText(record) {
+  if (!record) return "";
+  if (record.type === "posterior-facet-depression") return `${Number(record.valueMm).toFixed(1)} mm`;
+  return `${Number(record.angle).toFixed(1)}°`;
 }
 
 function renderFollowups() {
@@ -918,6 +996,7 @@ function labelForMeasurement(type) {
     bohler: "Böhler 角",
     gissane: "Gissane 角",
     "hindfoot-varus": "轴位内外翻",
+    "posterior-facet-depression": "CT 关节面塌陷程度",
     custom: "自定义角度"
   }[type] || "角度";
 }
@@ -1127,6 +1206,7 @@ function convolve(source, output, width, height, kernel) {
 
 function drawMeasureOverlay(canvas) {
   const ctx = canvas.getContext("2d");
+  const view = activeMeasurementView();
   ctx.save();
   ctx.lineWidth = 3;
   ctx.strokeStyle = "#f7d154";
@@ -1142,9 +1222,14 @@ function drawMeasureOverlay(canvas) {
   });
 
   if (measurePoints.length >= 2) drawLine(ctx, measurePoints[0], measurePoints[1]);
-  if (measurePoints.length >= 4) drawLine(ctx, measurePoints[2], measurePoints[3]);
+  if (view !== "ct" && measurePoints.length >= 4) drawLine(ctx, measurePoints[2], measurePoints[3]);
   ctx.restore();
 
+  if (view === "ct") {
+    const distance = currentDistance();
+    els.angleValue.textContent = distance ? `${distance.toFixed(0)} px` : "--";
+    return;
+  }
   const angle = currentAngle();
   els.angleValue.textContent = angle ? `${angle.toFixed(1)}°` : "--°";
 }
@@ -1167,6 +1252,11 @@ function currentAngle() {
   if (!lenA || !lenB) return null;
   const radians = Math.acos(Math.min(1, Math.max(-1, Math.abs(dot) / (lenA * lenB))));
   return radians * 180 / Math.PI;
+}
+
+function currentDistance() {
+  if (measurePoints.length < 2) return null;
+  return distance(measurePoints[0], measurePoints[1]);
 }
 
 function clearCanvas(canvas, text) {
@@ -1257,7 +1347,8 @@ function addDemoCase() {
 function selectedImage() {
   const current = activeCase();
   if (!current) return null;
-  return current.images.find((image) => image.id === els.imageSelect.value) || current.images[0] || null;
+  const preferredId = imageEditor.imageId || els.measurementImageSelect?.value || els.imageSelect?.value;
+  return current.images.find((image) => image.id === preferredId) || current.images[0] || null;
 }
 
 function ensureImageAdjustments(record) {
@@ -1631,7 +1722,12 @@ function wireEvents() {
       state.activeTab = name;
       persist();
       renderTutorial(name);
-      if (name === "measure") drawMeasure();
+      if (name === "measure") {
+        syncMeasurementUi();
+        const image = selectedImage();
+        if (image) loadEditorImage(image);
+        else drawMeasure();
+      }
     });
   });
 
@@ -1746,6 +1842,7 @@ function wireEvents() {
     current.updatedAt = new Date().toISOString();
     persist();
     renderImages();
+    renderMeasurements();
   });
   [els.brightness, els.contrast, els.sharpen, els.blackWhiteMode, els.imageDisplayMode].forEach((input) => {
     input.addEventListener("input", updateSelectedImageAdjustments);
@@ -1797,6 +1894,26 @@ function wireEvents() {
 
   els.saveImage.addEventListener("click", saveProcessedImage);
 
+  els.measurementView.addEventListener("change", () => {
+    measurePoints = [];
+    syncMeasurementUi();
+    const image = selectedImage();
+    if (image) loadEditorImage(image);
+    renderMeasurements();
+    drawMeasure();
+  });
+
+  els.measurementImageSelect.addEventListener("change", () => {
+    imageEditor.imageId = els.measurementImageSelect.value;
+    imageEditor.img = null;
+    measurePoints = [];
+    const image = selectedImage();
+    if (image) loadEditorImage(image);
+    renderMeasurements();
+  });
+
+  els.saveCtDepression.addEventListener("click", saveCtDepression);
+
   els.imageCanvas.addEventListener("pointerdown", handlePerspectivePointerDown);
   els.imageCanvas.addEventListener("pointermove", handlePerspectivePointerMove);
   els.imageCanvas.addEventListener("pointerup", handlePerspectivePointerUp);
@@ -1807,7 +1924,8 @@ function wireEvents() {
     const rect = els.measureCanvas.getBoundingClientRect();
     const scaleX = els.measureCanvas.width / rect.width;
     const scaleY = els.measureCanvas.height / rect.height;
-    if (measurePoints.length >= 4) measurePoints = [];
+    const maxPoints = activeMeasurementView() === "ct" ? 2 : 4;
+    if (measurePoints.length >= maxPoints) measurePoints = [];
     measurePoints.push({
       x: (event.clientX - rect.left) * scaleX,
       y: (event.clientY - rect.top) * scaleY
@@ -1927,6 +2045,7 @@ function saveMeasurement(type) {
   current.measurements.unshift({
     id: makeId(),
     type,
+    view: activeMeasurementView(),
     angle,
     points: measurePoints,
     imageId: image.id,
@@ -1934,6 +2053,29 @@ function saveMeasurement(type) {
     createdAt: new Date().toISOString()
   });
   current.updatedAt = new Date().toISOString();
+  persist();
+  measurePoints = [];
+  renderMeasurements();
+  drawMeasure();
+}
+
+function saveCtDepression() {
+  const current = activeCase();
+  const image = selectedImage();
+  const valueMm = Number(els.ctDepressionValue.value);
+  if (!current || !image || !Number.isFinite(valueMm) || valueMm < 0) return;
+  current.measurements.unshift({
+    id: makeId(),
+    type: "posterior-facet-depression",
+    view: "ct",
+    valueMm,
+    points: measurePoints.slice(0, 2),
+    imageId: image.id,
+    imageName: image.name,
+    createdAt: new Date().toISOString()
+  });
+  current.updatedAt = new Date().toISOString();
+  els.ctDepressionValue.value = "";
   persist();
   measurePoints = [];
   renderMeasurements();

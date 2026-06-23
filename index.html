@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=15">
+    <link rel="stylesheet" href="styles.css?v=16">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -659,18 +659,39 @@
                 <canvas id="measureCanvas" width="960" height="640" aria-label="角度测量画布"></canvas>
               </div>
               <div class="tool-panel">
+                <div class="measurement-context">
+                  <label>
+                    测量场景
+                    <select id="measurementView">
+                      <option value="lateral">跟骨侧位：Böhler 角 / Gissane 角</option>
+                      <option value="axial">跟骨轴位：轴位内外翻</option>
+                      <option value="ct">CT 层面：关节面塌陷程度</option>
+                    </select>
+                  </label>
+                  <label>
+                    测量影像
+                    <select id="measurementImageSelect"></select>
+                  </label>
+                </div>
                 <div class="angle-readout">
-                  <span>当前角度</span>
+                  <span id="measurementReadoutLabel">当前角度</span>
                   <strong id="angleValue">--°</strong>
                 </div>
                 <div class="measurement-actions">
-                  <button class="tool-button" data-save-measurement="bohler">记录为 Böhler 角</button>
-                  <button class="tool-button" data-save-measurement="gissane">记录为 Gissane 角</button>
-                  <button class="tool-button" data-save-measurement="hindfoot-varus">记录为轴位内外翻</button>
-                  <button class="tool-button" data-save-measurement="custom">记录为自定义角度</button>
+                  <button class="tool-button" data-save-measurement="bohler" data-measurement-view="lateral">记录为 Böhler 角</button>
+                  <button class="tool-button" data-save-measurement="gissane" data-measurement-view="lateral">记录为 Gissane 角</button>
+                  <button class="tool-button" data-save-measurement="hindfoot-varus" data-measurement-view="axial">记录为轴位内外翻</button>
+                  <button class="tool-button" data-save-measurement="custom" data-measurement-view="lateral axial">记录为自定义角度</button>
+                </div>
+                <div class="ct-measurement-panel" id="ctMeasurementPanel">
+                  <label>
+                    关节面塌陷程度（mm）
+                    <input id="ctDepressionValue" type="number" min="0" max="80" step="0.1" placeholder="例如 4.5">
+                  </label>
+                  <button class="tool-button" id="saveCtDepression" type="button">记录为关节面塌陷程度</button>
                 </div>
                 <button id="resetPoints" class="tool-button">重置点位</button>
-                <p class="helper-text">依次点击 4 个点：第一条线 2 个点，第二条线 2 个点。系统计算两线夹角，医生确认后记录。</p>
+                <p class="helper-text" id="measurementHelp">跟骨侧位用于 Böhler 角和 Gissane 角：依次点击 4 个点，两点一条线，系统计算两线夹角。</p>
                 <div id="measurementList" class="record-list"></div>
               </div>
             </div>
