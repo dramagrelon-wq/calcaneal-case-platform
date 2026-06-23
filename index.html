@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=11">
+    <link rel="stylesheet" href="styles.css?v=12">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -244,12 +244,29 @@
         <section class="content" aria-live="polite">
           <nav class="tabs" aria-label="功能区">
             <button class="tab active" data-tab="overview">病例</button>
+            <button class="tab" data-tab="classify">分型</button>
             <button class="tab" data-tab="images">影像</button>
             <button class="tab" data-tab="measure">测量</button>
-            <button class="tab" data-tab="classify">分型</button>
             <button class="tab" data-tab="followup">随访</button>
             <button class="tab" data-tab="discussion">讨论</button>
           </nav>
+
+          <section class="tutorial-video" id="pageTutorial" aria-label="页面教学视频">
+            <div class="tutorial-screen">
+              <span class="tutorial-play" aria-hidden="true">▶</span>
+              <span class="tutorial-label">本页教学视频</span>
+            </div>
+            <div class="tutorial-copy">
+              <p class="eyebrow" id="tutorialEyebrow">Case Intake Guide</p>
+              <h3 id="tutorialTitle">如何录入一个跟骨骨折病例</h3>
+              <p id="tutorialText">先完成病例编号、可见范围、受伤机制、合并损伤和隐私检查，系统会自动暂存当前病例。</p>
+            </div>
+          </section>
+
+          <div class="autosave-bar" aria-live="polite">
+            <span id="saveStatus">已自动保存</span>
+            <button class="ghost-button" id="tempSave" type="button">暂存当前病例</button>
+          </div>
 
           <section class="tab-panel active" id="overviewPanel">
             <div class="section-heading">
@@ -306,12 +323,45 @@
               </label>
               <label>
                 受伤机制
-                <input id="mechanism" placeholder="高处坠落、交通伤等">
+                <select id="mechanismType">
+                  <option value="">未填写</option>
+                  <option value="高处坠落伤">高处坠落伤</option>
+                  <option value="交通伤">交通伤</option>
+                  <option value="扭伤">扭伤</option>
+                  <option value="其他">其他</option>
+                </select>
               </label>
-              <label class="wide">
-                合并损伤
-                <textarea id="combinedInjury" rows="3" placeholder="脊柱、骨盆、下肢其他骨折或软组织损伤等；没有可留空"></textarea>
+              <label id="mechanismOtherWrap">
+                其他受伤机制
+                <input id="mechanismOther" placeholder="请补充具体受伤机制">
               </label>
+            </div>
+
+            <div class="structured-injury-panel">
+              <h3>合并损伤</h3>
+              <p class="helper-text">没有合并损伤可以留空；如有，请勾选部位并补充具体内容。</p>
+              <div class="injury-detail-grid">
+                <label>
+                  <span><input type="checkbox" id="injurySpine"> 脊柱</span>
+                  <input id="injurySpineDetail" placeholder="具体节段、骨折或神经症状">
+                </label>
+                <label>
+                  <span><input type="checkbox" id="injuryLowerLimb"> 下肢</span>
+                  <input id="injuryLowerLimbDetail" placeholder="股骨、胫腓骨、踝关节等">
+                </label>
+                <label>
+                  <span><input type="checkbox" id="injuryPelvis"> 骨盆</span>
+                  <input id="injuryPelvisDetail" placeholder="骨盆环、髋臼或骶髂关节">
+                </label>
+                <label>
+                  <span><input type="checkbox" id="injuryFoot"> 足部</span>
+                  <input id="injuryFootDetail" placeholder="同侧/对侧足部其他损伤">
+                </label>
+                <label class="wide">
+                  <span><input type="checkbox" id="injuryOther"> 其他</span>
+                  <input id="injuryOtherDetail" placeholder="其他部位或特殊情况">
+                </label>
+              </div>
             </div>
 
             <div class="visibility-guide">
@@ -439,6 +489,100 @@
             </div>
           </section>
 
+          <section class="tab-panel" id="classifyPanel">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Classification Assistant</p>
+                <h2>分型建议</h2>
+              </div>
+              <span class="status-pill warning">医生确认</span>
+            </div>
+
+            <div class="classification-grid">
+              <article class="classification-card">
+                <h3>Essex-Lopresti 分型</h3>
+                <label>
+                  分型结果
+                  <select id="essex">
+                    <option value="">待确认</option>
+                    <option>Tongue type</option>
+                    <option>Joint depression type</option>
+                    <option>Comminuted/atypical</option>
+                  </select>
+                </label>
+              </article>
+              <article class="classification-card">
+                <h3>Sanders 分型</h3>
+                <label>
+                  分型结果
+                  <select id="sanders">
+                    <option value="">待确认</option>
+                    <option>I</option>
+                    <option>II</option>
+                    <option>III</option>
+                    <option>IV</option>
+                  </select>
+                </label>
+              </article>
+              <article class="classification-card">
+                <h3>Zwipp 分型采集</h3>
+                <div class="form-grid compact">
+                  <label>
+                    后跟距关节面骨折
+                    <select id="zwippPosteriorFacet">
+                      <option value="">未判断</option>
+                      <option value="yes">有</option>
+                      <option value="no">无</option>
+                    </select>
+                  </label>
+                  <label>
+                    中跟距关节面/载距突骨块骨折
+                    <select id="zwippMiddleFacet">
+                      <option value="">未判断</option>
+                      <option value="yes">有</option>
+                      <option value="no">无</option>
+                    </select>
+                  </label>
+                  <label>
+                    跟骰关节面骨折
+                    <select id="zwippCalcaneocuboid">
+                      <option value="">未判断</option>
+                      <option value="yes">有</option>
+                      <option value="no">无</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="fragment-checks">
+                  <label><input type="checkbox" id="zwippTuberosity"> 跟骨结节骨块</label>
+                  <label><input type="checkbox" id="zwippDepressed"> 塌陷骨块</label>
+                  <label><input type="checkbox" id="zwippSustentaculum"> 载距突骨块</label>
+                  <label><input type="checkbox" id="zwippAnterolateral"> 前外侧骨块</label>
+                  <label><input type="checkbox" id="zwippAnteromedial"> 前内侧骨块</label>
+                </div>
+              </article>
+            </div>
+
+            <div class="form-grid">
+              <label>
+                骨折脱位型
+                <select id="fractureDislocation">
+                  <option value="">未判断</option>
+                  <option value="yes">是</option>
+                  <option value="no">否</option>
+                </select>
+              </label>
+              <label class="wide">
+                分型补充
+                <textarea id="specialClassification" rows="3" placeholder="对无法归入常见分型的情况进行补充"></textarea>
+              </label>
+            </div>
+
+            <div class="suggestion-box">
+              <h3>系统建议</h3>
+              <p id="classificationSuggestion">补充 Essex-Lopresti、Sanders、Zwipp 和特殊情况后生成建议。</p>
+            </div>
+          </section>
+
           <section class="tab-panel" id="imagesPanel">
             <div class="section-heading">
               <div>
@@ -477,9 +621,23 @@
                   <button id="applyPerspective" class="tool-button">应用矫正</button>
                   <button id="resetPerspective" class="tool-button">重置角点</button>
                 </div>
+                <p class="helper-text">四点矫正：先点击“四点矫正”，拖动四个角点贴住拍摄屏幕、片子或纸张的四个边角，再点“应用矫正”，把斜拍的梯形拉回标准长方形或正方形。</p>
+                <div class="tool-row">
+                  <button id="undoImage" class="tool-button">后退一步</button>
+                  <button id="redoImage" class="tool-button">前进一步</button>
+                  <button id="resetOriginalImage" class="tool-button">恢复原始</button>
+                </div>
+                <label>
+                  图片显示
+                  <select id="imageDisplayMode">
+                    <option value="fit">自动适配</option>
+                    <option value="stretch">自动拉伸大小</option>
+                    <option value="cover">全屏</option>
+                  </select>
+                </label>
                 <label class="toggle-row">
                   <input id="blackWhiteMode" type="checkbox">
-                  纯黑白对比
+                  黑白滤镜
                 </label>
                 <label>
                   亮度
@@ -530,95 +688,6 @@
                 <p class="helper-text">依次点击 4 个点：第一条线 2 个点，第二条线 2 个点。系统计算两线夹角，医生确认后记录。</p>
                 <div id="measurementList" class="record-list"></div>
               </div>
-            </div>
-          </section>
-
-          <section class="tab-panel" id="classifyPanel">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Classification Assistant</p>
-                <h2>分型建议</h2>
-              </div>
-              <span class="status-pill warning">医生确认</span>
-            </div>
-
-            <div class="form-grid">
-              <label>
-                Essex-Lopresti
-                <select id="essex">
-                  <option value="">待确认</option>
-                  <option>Tongue type</option>
-                  <option>Joint depression type</option>
-                  <option>Comminuted/atypical</option>
-                </select>
-              </label>
-              <label>
-                Sanders
-                <select id="sanders">
-                  <option value="">待确认</option>
-                  <option>I</option>
-                  <option>II</option>
-                  <option>III</option>
-                  <option>IV</option>
-                </select>
-              </label>
-            </div>
-
-            <div class="zwipp-panel">
-              <h3>Zwipp 分型采集</h3>
-              <div class="form-grid">
-                <label>
-                  后跟距关节面骨折
-                  <select id="zwippPosteriorFacet">
-                    <option value="">未判断</option>
-                    <option value="yes">有</option>
-                    <option value="no">无</option>
-                  </select>
-                </label>
-                <label>
-                  中跟距关节面/载距突骨块骨折
-                  <select id="zwippMiddleFacet">
-                    <option value="">未判断</option>
-                    <option value="yes">有</option>
-                    <option value="no">无</option>
-                  </select>
-                </label>
-                <label>
-                  跟骰关节面骨折
-                  <select id="zwippCalcaneocuboid">
-                    <option value="">未判断</option>
-                    <option value="yes">有</option>
-                    <option value="no">无</option>
-                  </select>
-                </label>
-              </div>
-              <div class="fragment-checks">
-                <label><input type="checkbox" id="zwippTuberosity"> 跟骨结节骨块</label>
-                <label><input type="checkbox" id="zwippDepressed"> 塌陷骨块</label>
-                <label><input type="checkbox" id="zwippSustentaculum"> 载距突骨块</label>
-                <label><input type="checkbox" id="zwippAnterolateral"> 前外侧骨块</label>
-                <label><input type="checkbox" id="zwippAnteromedial"> 前内侧骨块</label>
-              </div>
-            </div>
-
-            <div class="form-grid">
-              <label>
-                骨折脱位型
-                <select id="fractureDislocation">
-                  <option value="">未判断</option>
-                  <option value="yes">是</option>
-                  <option value="no">否</option>
-                </select>
-              </label>
-              <label class="wide">
-                分型补充
-                <textarea id="specialClassification" rows="3" placeholder="对无法归入常见分型的情况进行补充"></textarea>
-              </label>
-            </div>
-
-            <div class="suggestion-box">
-              <h3>系统建议</h3>
-              <p id="classificationSuggestion">补充 Essex-Lopresti、Sanders、Zwipp 和特殊情况后生成建议。</p>
             </div>
           </section>
 

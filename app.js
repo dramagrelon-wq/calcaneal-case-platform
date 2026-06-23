@@ -34,6 +34,32 @@ const introSteps = [
   ["解剖动画", "用公开教学素材做入口演示，正式病例区只放脱敏病例和经过授权的资料。"]
 ];
 
+const tutorialGuides = {
+  overview: ["Case Intake Guide", "如何录入一个跟骨骨折病例", "先完成病例编号、可见范围、受伤机制、合并损伤和隐私检查。字段变更会自动保存，也可以点“暂存当前病例”手动确认。"],
+  classify: ["Classification Guide", "如何完成分型记录", "Essex-Lopresti、Sanders 和 Zwipp 作为同等重要的记录入口填写，最后再补充骨折脱位型和特殊情况。"],
+  images: ["Image Workspace Guide", "如何上传和处理影像", "批量上传后先分类，再按单张影像做裁剪、黑白滤镜、亮度、对比度、锐化和四点矫正。操作失误可后退、前进或恢复原始图。"],
+  measure: ["Measurement Guide", "如何做角度测量", "选择影像后依次点击四个点，两点确定第一条线，两点确定第二条线，系统会计算夹角，医生确认后记录到对应角度。"],
+  followup: ["Follow-up Guide", "如何安排随访", "先设默认随访间隔，再记录提醒日期、VAS、功能评分、负重状态和终极指标。随访结束后仍可保留关键结局。"],
+  discussion: ["Discussion Guide", "如何组织病例讨论", "讨论区用于记录术前计划、复位策略、影像判断和术后复盘。公开前仍需确认病例已经充分去标识化。"]
+};
+
+const injuryKeys = ["spine", "lowerLimb", "pelvis", "foot", "other"];
+const injuryLabels = {
+  spine: "脊柱",
+  lowerLimb: "下肢",
+  pelvis: "骨盆",
+  foot: "足部",
+  other: "其他"
+};
+
+const defaultImageAdjustments = {
+  brightness: 0,
+  contrast: 20,
+  sharpen: 1,
+  blackWhite: false,
+  displayMode: "fit"
+};
+
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
@@ -81,6 +107,11 @@ const els = {
   seedDemo: $("#seedDemo"),
   exportData: $("#exportData"),
   importData: $("#importData"),
+  tutorialEyebrow: $("#tutorialEyebrow"),
+  tutorialTitle: $("#tutorialTitle"),
+  tutorialText: $("#tutorialText"),
+  saveStatus: $("#saveStatus"),
+  tempSave: $("#tempSave"),
   tabs: $$(".tab"),
   panels: {
     overview: $("#overviewPanel"),
@@ -96,8 +127,19 @@ const els = {
     ageBand: $("#ageBand"),
     sex: $("#sex"),
     side: $("#side"),
-    mechanism: $("#mechanism"),
-    combinedInjury: $("#combinedInjury"),
+    mechanismType: $("#mechanismType"),
+    mechanismOther: $("#mechanismOther"),
+    mechanismOtherWrap: $("#mechanismOtherWrap"),
+    injurySpine: $("#injurySpine"),
+    injurySpineDetail: $("#injurySpineDetail"),
+    injuryLowerLimb: $("#injuryLowerLimb"),
+    injuryLowerLimbDetail: $("#injuryLowerLimbDetail"),
+    injuryPelvis: $("#injuryPelvis"),
+    injuryPelvisDetail: $("#injuryPelvisDetail"),
+    injuryFoot: $("#injuryFoot"),
+    injuryFootDetail: $("#injuryFootDetail"),
+    injuryOther: $("#injuryOther"),
+    injuryOtherDetail: $("#injuryOtherDetail"),
     threeStepNotes: $("#threeStepNotes"),
     localPatientName: $("#localPatientName"),
     localPatientPhone: $("#localPatientPhone"),
@@ -147,6 +189,10 @@ const els = {
   applyPerspective: $("#applyPerspective"),
   resetPerspective: $("#resetPerspective"),
   rotateImage: $("#rotateImage"),
+  undoImage: $("#undoImage"),
+  redoImage: $("#redoImage"),
+  resetOriginalImage: $("#resetOriginalImage"),
+  imageDisplayMode: $("#imageDisplayMode"),
   saveImage: $("#saveImage"),
   blackWhiteMode: $("#blackWhiteMode"),
   brightness: $("#brightness"),
@@ -203,14 +249,22 @@ function loadAccessState() {
 
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  markSaved("已自动保存");
 }
 
 function persistPrivate() {
   localStorage.setItem(PRIVATE_STORAGE_KEY, JSON.stringify(privateState));
+  markSaved("私密信息已本地保存");
 }
 
 function persistAccess() {
   localStorage.setItem(ACCESS_STORAGE_KEY, JSON.stringify(accessState));
+}
+
+function markSaved(prefix = "已自动保存") {
+  if (!els?.saveStatus) return;
+  const time = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  els.saveStatus.textContent = `${prefix} · ${time}`;
 }
 
 function renderAccessGate() {
@@ -280,6 +334,19 @@ function toggleIntro() {
   else startIntro();
 }
 
+function renderTutorial(tabName = state.activeTab || "overview") {
+  const guide = tutorialGuides[tabName] || tutorialGuides.overview;
+  els.tutorialEyebrow.textContent = guide[0];
+  els.tutorialTitle.textContent = guide[1];
+  els.tutorialText.textContent = guide[2];
+}
+
+function syncActiveTab() {
+  const tabName = state.activeTab || "overview";
+  els.tabs.forEach((item) => item.classList.toggle("active", item.dataset.tab === tabName));
+  Object.entries(els.panels).forEach(([key, panel]) => panel.classList.toggle("active", key === tabName));
+}
+
 function activeCase() {
   return state.cases.find((item) => item.id === state.activeCaseId) || null;
 }
@@ -302,8 +369,92 @@ function updatePrivateCase(key, value) {
   persistPrivate();
 }
 
+function mechanismTypeFromValue(value = "") {
+  if (!value) return "";
+  const normalized = String(value).trim();
+  if (["高处坠落伤", "交通伤", "扭伤"].includes(normalized)) return normalized;
+  if (normalized === "高处坠落") return "高处坠落伤";
+  return "其他";
+}
+
+function normalizeCombinedInjuries(value, legacyText = "") {
+  const base = {};
+  injuryKeys.forEach((key) => {
+    base[key] = {
+      checked: Boolean(value?.[key]?.checked),
+      detail: value?.[key]?.detail || ""
+    };
+  });
+  if (!value && legacyText) {
+    base.other = { checked: true, detail: legacyText };
+  }
+  return base;
+}
+
+function combinedInjurySummary(item) {
+  const combined = normalizeCombinedInjuries(item.combinedInjuries, item.combinedInjury);
+  const parts = injuryKeys
+    .filter((key) => combined[key]?.checked)
+    .map((key) => {
+      const detail = combined[key]?.detail?.trim();
+      return detail ? `${injuryLabels[key]}：${detail}` : injuryLabels[key];
+    });
+  return parts.join("；");
+}
+
+function caseMechanismLabel(item) {
+  if (!item) return "";
+  const type = item.mechanismType || mechanismTypeFromValue(item.mechanism);
+  if (type === "其他") return item.mechanismOther || item.mechanism || "其他";
+  return type || item.mechanism || "";
+}
+
+function setMechanismOtherVisibility() {
+  const isOther = els.fields.mechanismType.value === "其他";
+  els.fields.mechanismOtherWrap.classList.toggle("hidden-field", !isOther);
+}
+
+function updateMechanismFromFields() {
+  const type = els.fields.mechanismType.value;
+  const other = els.fields.mechanismOther.value.trim();
+  updateCase({
+    mechanismType: type,
+    mechanismOther: other,
+    mechanism: type === "其他" ? other : type
+  });
+  setMechanismOtherVisibility();
+}
+
+function updateCombinedInjuryFromFields() {
+  const combinedInjuries = {};
+  injuryKeys.forEach((key) => {
+    const checkbox = els.fields[`injury${injuryFieldName(key)}`];
+    const detail = els.fields[`injury${injuryFieldName(key)}Detail`];
+    combinedInjuries[key] = {
+      checked: Boolean(checkbox.checked),
+      detail: detail.value.trim()
+    };
+  });
+  updateCase({
+    combinedInjuries,
+    combinedInjury: combinedInjurySummary({ combinedInjuries })
+  });
+}
+
+function injuryFieldName(key) {
+  return {
+    spine: "Spine",
+    lowerLimb: "LowerLimb",
+    pelvis: "Pelvis",
+    foot: "Foot",
+    other: "Other"
+  }[key];
+}
+
 function createCase(seed = {}) {
   const id = makeId();
+  const mechanismType = seed.mechanismType || mechanismTypeFromValue(seed.mechanism || "");
+  const mechanismOther = seed.mechanismOther || (mechanismType === "其他" ? seed.mechanism || "" : "");
   const next = {
     id,
     code: seed.code || `CF-${new Date().getFullYear()}-${String(state.cases.length + 1).padStart(3, "0")}`,
@@ -311,8 +462,11 @@ function createCase(seed = {}) {
     ageBand: seed.ageBand || "",
     sex: seed.sex || "",
     side: seed.side || "",
-    mechanism: seed.mechanism || "",
+    mechanismType,
+    mechanismOther,
+    mechanism: mechanismType === "其他" ? mechanismOther : mechanismType,
     combinedInjury: seed.combinedInjury || "",
+    combinedInjuries: normalizeCombinedInjuries(seed.combinedInjuries, seed.combinedInjury),
     comorbidities: {
       cardio: false,
       diabetes: false,
@@ -415,6 +569,7 @@ function syncVisibilityUi(value) {
 function render() {
   renderCaseList();
   renderActiveCase();
+  renderTutorial();
   renderImages();
   renderMeasurements();
   renderFollowups();
@@ -428,8 +583,8 @@ function renderCaseList() {
     const haystack = [
       item.code,
       item.side,
-      item.mechanism,
-      item.combinedInjury,
+      caseMechanismLabel(item),
+      combinedInjurySummary(item),
       item.research?.ethicsApprovalId,
       item.classification?.sanders,
       item.classification?.essex,
@@ -450,7 +605,7 @@ function renderCaseList() {
     return `
       <button class="case-item${active}" data-case-id="${item.id}">
         <strong>${escapeHtml(item.code)}</strong>
-        <span>${escapeHtml(item.mechanism || "受伤机制未填写")}</span>
+        <span>${escapeHtml(caseMechanismLabel(item) || "受伤机制未填写")}</span>
         <span>${item.images.length} 张影像 · ${item.comments.length} 条讨论</span>
         <span class="case-tags">${tags.map((tag) => `<em>${escapeHtml(tag)}</em>`).join("")}</span>
       </button>
@@ -469,13 +624,23 @@ function renderActiveCase() {
 
   if (!$(".tabs")) window.location.reload();
 
+  syncActiveTab();
   els.fields.caseCode.value = current.code;
   els.fields.privacyLevel.value = current.privacyLevel;
   els.fields.ageBand.value = current.ageBand;
   els.fields.sex.value = current.sex;
   els.fields.side.value = current.side;
-  els.fields.mechanism.value = current.mechanism;
-  els.fields.combinedInjury.value = current.combinedInjury || "";
+  current.mechanismType ||= mechanismTypeFromValue(current.mechanism);
+  current.mechanismOther ||= current.mechanismType === "其他" ? current.mechanism || "" : "";
+  els.fields.mechanismType.value = current.mechanismType;
+  els.fields.mechanismOther.value = current.mechanismOther || "";
+  setMechanismOtherVisibility();
+  current.combinedInjuries = normalizeCombinedInjuries(current.combinedInjuries, current.combinedInjury);
+  injuryKeys.forEach((key) => {
+    const fieldName = injuryFieldName(key);
+    els.fields[`injury${fieldName}`].checked = Boolean(current.combinedInjuries[key]?.checked);
+    els.fields[`injury${fieldName}Detail`].value = current.combinedInjuries[key]?.detail || "";
+  });
   els.fields.threeStepNotes.value = current.threeStepNotes;
   const local = activePrivateCase();
   els.fields.localPatientName.value = local.patientName || "";
@@ -542,6 +707,7 @@ function renderImages() {
     els.imageSelect.value = selected.id;
     loadEditorImage(selected);
   } else {
+    updateImageHistoryButtons(null);
     clearCanvas(els.imageCanvas, "上传影像后可进行裁剪、增强、保存");
     clearCanvas(els.measureCanvas, "上传并选择影像后可进行角度测量");
   }
@@ -707,6 +873,7 @@ function labelForMeasurement(type) {
 }
 
 function loadEditorImage(record) {
+  syncImageControls(record);
   if (!record || imageEditor.imageId === record.id && imageEditor.img) {
     drawEditor();
     drawMeasure();
@@ -719,10 +886,7 @@ function loadEditorImage(record) {
     imageEditor.imageId = record.id;
     imageEditor.rotation = 0;
     imageEditor.crop = null;
-    els.brightness.value = "0";
-    els.contrast.value = "20";
-    els.sharpen.value = "1";
-    els.blackWhiteMode.checked = false;
+    syncImageControls(record);
     drawEditor();
     drawMeasure();
   };
@@ -756,11 +920,17 @@ function drawProcessedImage(canvas) {
   const rotated = imageEditor.rotation % 180 !== 0;
   const targetWidth = rotated ? crop.height : crop.width;
   const targetHeight = rotated ? crop.width : crop.height;
-  const ratio = Math.min(canvas.width / targetWidth, canvas.height / targetHeight);
-  const drawWidth = Math.max(1, Math.round(targetWidth * ratio));
-  const drawHeight = Math.max(1, Math.round(targetHeight * ratio));
+  const displayMode = ensureImageAdjustments(selectedImage()).displayMode || "fit";
+  const ratio = displayMode === "cover"
+    ? Math.max(canvas.width / targetWidth, canvas.height / targetHeight)
+    : Math.min(canvas.width / targetWidth, canvas.height / targetHeight);
+  const drawWidth = displayMode === "stretch" ? canvas.width : Math.max(1, Math.round(targetWidth * ratio));
+  const drawHeight = displayMode === "stretch" ? canvas.height : Math.max(1, Math.round(targetHeight * ratio));
   const offsetX = Math.round((canvas.width - drawWidth) / 2);
   const offsetY = Math.round((canvas.height - drawHeight) / 2);
+  const processBounds = displayMode === "fit"
+    ? { x: offsetX, y: offsetY, width: drawWidth, height: drawHeight }
+    : { x: 0, y: 0, width: canvas.width, height: canvas.height };
 
   ctx.fillStyle = "#111817";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -780,8 +950,8 @@ function drawProcessedImage(canvas) {
   );
   ctx.restore();
 
-  applyEnhancement(canvas, offsetX, offsetY, drawWidth, drawHeight);
-  canvas.dataset.imageBounds = JSON.stringify({ x: offsetX, y: offsetY, width: drawWidth, height: drawHeight });
+  applyEnhancement(canvas, processBounds.x, processBounds.y, processBounds.width, processBounds.height);
+  canvas.dataset.imageBounds = JSON.stringify(processBounds);
 }
 
 function drawPerspectiveOverlay(canvas) {
@@ -837,20 +1007,20 @@ function applyEnhancement(canvas, x, y, width, height) {
   const ctx = canvas.getContext("2d");
   const imageData = ctx.getImageData(x, y, width, height);
   const data = imageData.data;
-  const brightness = Number(els.brightness.value);
-  const contrast = Number(els.contrast.value);
+  const adjustments = ensureImageAdjustments(selectedImage());
+  const brightness = Number(adjustments.brightness);
+  const contrast = Number(adjustments.contrast);
   const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
 
   for (let index = 0; index < data.length; index += 4) {
     const red = clamp(factor * (data[index] - 128) + 128 + brightness);
     const green = clamp(factor * (data[index + 1] - 128) + 128 + brightness);
     const blue = clamp(factor * (data[index + 2] - 128) + 128 + brightness);
-    if (els.blackWhiteMode.checked) {
+    if (adjustments.blackWhite) {
       const gray = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-      const bw = gray > 128 ? 255 : 0;
-      data[index] = bw;
-      data[index + 1] = bw;
-      data[index + 2] = bw;
+      data[index] = gray;
+      data[index + 1] = gray;
+      data[index + 2] = gray;
     } else {
       data[index] = red;
       data[index + 1] = green;
@@ -860,7 +1030,7 @@ function applyEnhancement(canvas, x, y, width, height) {
 
   ctx.putImageData(imageData, x, y);
 
-  const sharpen = Number(els.sharpen.value);
+  const sharpen = Number(adjustments.sharpen);
   if (sharpen > 0) {
     const source = ctx.getImageData(x, y, width, height);
     const output = ctx.createImageData(width, height);
@@ -965,8 +1135,10 @@ function addDemoCase() {
     ageBand: "46-60",
     sex: "不公开",
     side: "右",
-    mechanism: "高处坠落",
-    combinedInjury: "无明显合并损伤。",
+    mechanismType: "高处坠落伤",
+    mechanism: "高处坠落伤",
+    combinedInjury: "",
+    combinedInjuries: normalizeCombinedInjuries(),
     comorbidities: {
       cardio: false,
       diabetes: false,
@@ -1022,6 +1194,117 @@ function selectedImage() {
   const current = activeCase();
   if (!current) return null;
   return current.images.find((image) => image.id === els.imageSelect.value) || current.images[0] || null;
+}
+
+function ensureImageAdjustments(record) {
+  if (!record) return { ...defaultImageAdjustments };
+  record.adjustments = {
+    ...defaultImageAdjustments,
+    ...(record.adjustments || {})
+  };
+  return record.adjustments;
+}
+
+function ensureImageHistory(record) {
+  if (!record) return;
+  record.originalDataUrl ||= record.dataUrl;
+  if (!Array.isArray(record.history) || !record.history.length) {
+    record.history = record.dataUrl === record.originalDataUrl
+      ? [record.originalDataUrl]
+      : [record.originalDataUrl, record.dataUrl];
+  }
+  if (!Number.isInteger(record.historyIndex)) {
+    const index = record.history.indexOf(record.dataUrl);
+    record.historyIndex = index >= 0 ? index : record.history.length - 1;
+  }
+}
+
+function syncImageControls(record) {
+  const adjustments = ensureImageAdjustments(record);
+  els.brightness.value = String(adjustments.brightness);
+  els.contrast.value = String(adjustments.contrast);
+  els.sharpen.value = String(adjustments.sharpen);
+  els.blackWhiteMode.checked = Boolean(adjustments.blackWhite);
+  els.imageDisplayMode.value = adjustments.displayMode || "fit";
+  updateImageHistoryButtons(record);
+}
+
+function updateSelectedImageAdjustments() {
+  const current = activeCase();
+  const record = selectedImage();
+  if (!current || !record) return;
+  record.adjustments = {
+    brightness: Number(els.brightness.value),
+    contrast: Number(els.contrast.value),
+    sharpen: Number(els.sharpen.value),
+    blackWhite: Boolean(els.blackWhiteMode.checked),
+    displayMode: els.imageDisplayMode.value
+  };
+  current.updatedAt = new Date().toISOString();
+  persist();
+  drawEditor();
+  drawMeasure();
+}
+
+function updateImageHistoryButtons(record = selectedImage()) {
+  if (!els.undoImage) return;
+  if (!record) {
+    els.undoImage.disabled = true;
+    els.redoImage.disabled = true;
+    els.resetOriginalImage.disabled = true;
+    return;
+  }
+  ensureImageHistory(record);
+  els.undoImage.disabled = record.historyIndex <= 0;
+  els.redoImage.disabled = record.historyIndex >= record.history.length - 1;
+  els.resetOriginalImage.disabled = record.dataUrl === record.originalDataUrl;
+}
+
+function commitImageVersion(record, dataUrl, suffix) {
+  const current = activeCase();
+  if (!current || !record || !dataUrl) return;
+  ensureImageHistory(record);
+  record.history = record.history.slice(0, record.historyIndex + 1);
+  record.history.push(dataUrl);
+  record.historyIndex = record.history.length - 1;
+  record.dataUrl = dataUrl;
+  record.name = `${record.name.replace(/ \((处理|矫正)\)$/, "")} (${suffix})`;
+  record.updatedAt = new Date().toISOString();
+  current.updatedAt = new Date().toISOString();
+  imageEditor.imageId = record.id;
+  imageEditor.img = null;
+  persist();
+  render();
+}
+
+function stepImageHistory(direction) {
+  const current = activeCase();
+  const record = selectedImage();
+  if (!current || !record) return;
+  ensureImageHistory(record);
+  const nextIndex = record.historyIndex + direction;
+  if (nextIndex < 0 || nextIndex >= record.history.length) return;
+  record.historyIndex = nextIndex;
+  record.dataUrl = record.history[nextIndex];
+  record.updatedAt = new Date().toISOString();
+  current.updatedAt = new Date().toISOString();
+  imageEditor.img = null;
+  persist();
+  renderImages();
+}
+
+function resetImageToOriginal() {
+  const current = activeCase();
+  const record = selectedImage();
+  if (!current || !record) return;
+  ensureImageHistory(record);
+  record.historyIndex = 0;
+  record.dataUrl = record.originalDataUrl;
+  record.updatedAt = new Date().toISOString();
+  current.updatedAt = new Date().toISOString();
+  imageEditor.img = null;
+  persist();
+  renderImages();
 }
 
 function rememberResearchFile(field, input, label) {
@@ -1141,16 +1424,9 @@ function applyPerspectiveCorrection() {
   }
 
   outputCtx.putImageData(outputData, 0, 0);
-  record.dataUrl = output.toDataURL("image/png", 0.92);
-  record.name = `${record.name.replace(/ \(矫正\)$/, "")} (矫正)`;
-  record.updatedAt = new Date().toISOString();
-  current.updatedAt = new Date().toISOString();
   perspectiveMode = false;
   perspectivePoints = [];
-  imageEditor.imageId = record.id;
-  imageEditor.img = null;
-  persist();
-  render();
+  commitImageVersion(record, output.toDataURL("image/png", 0.92), "矫正");
 }
 
 function distance(a, b) {
@@ -1270,11 +1546,18 @@ function wireEvents() {
       Object.entries(els.panels).forEach(([key, panel]) => panel.classList.toggle("active", key === name));
       state.activeTab = name;
       persist();
+      renderTutorial(name);
       if (name === "measure") drawMeasure();
     });
   });
 
-  const directFields = ["caseCode", "privacyLevel", "ageBand", "sex", "side", "mechanism", "combinedInjury", "threeStepNotes"];
+  els.tempSave.addEventListener("click", () => {
+    persist();
+    persistPrivate();
+    markSaved("已暂存当前病例");
+  });
+
+  const directFields = ["caseCode", "privacyLevel", "ageBand", "sex", "side", "threeStepNotes"];
   directFields.forEach((key) => {
     els.fields[key].addEventListener("input", () => {
       const map = { caseCode: "code" };
@@ -1283,6 +1566,15 @@ function wireEvents() {
         syncVisibilityUi(els.fields[key].value);
       }
     });
+  });
+
+  els.fields.mechanismType.addEventListener("change", updateMechanismFromFields);
+  els.fields.mechanismOther.addEventListener("input", updateMechanismFromFields);
+
+  injuryKeys.forEach((key) => {
+    const fieldName = injuryFieldName(key);
+    els.fields[`injury${fieldName}`].addEventListener("change", updateCombinedInjuryFromFields);
+    els.fields[`injury${fieldName}Detail`].addEventListener("input", updateCombinedInjuryFromFields);
   });
 
   els.visibilityCards.forEach((card) => {
@@ -1379,10 +1671,10 @@ function wireEvents() {
     persist();
     renderImages();
   });
-  [els.brightness, els.contrast, els.sharpen, els.blackWhiteMode].forEach((input) => input.addEventListener("input", () => {
-    drawEditor();
-    drawMeasure();
-  }));
+  [els.brightness, els.contrast, els.sharpen, els.blackWhiteMode, els.imageDisplayMode].forEach((input) => {
+    input.addEventListener("input", updateSelectedImageAdjustments);
+    input.addEventListener("change", updateSelectedImageAdjustments);
+  });
 
   els.autoCrop.addEventListener("click", () => {
     const crop = estimateCrop();
@@ -1416,6 +1708,10 @@ function wireEvents() {
     ensurePerspectivePoints();
     drawEditor();
   });
+
+  els.undoImage.addEventListener("click", () => stepImageHistory(-1));
+  els.redoImage.addEventListener("click", () => stepImageHistory(1));
+  els.resetOriginalImage.addEventListener("click", resetImageToOriginal);
 
   els.rotateImage.addEventListener("click", () => {
     imageEditor.rotation = (imageEditor.rotation + 90) % 360;
@@ -1506,6 +1802,10 @@ async function handleImageUpload(event) {
       category: inferImageCategory(file.name),
       type: file.type || "image/png",
       dataUrl,
+      originalDataUrl: dataUrl,
+      history: [dataUrl],
+      historyIndex: 0,
+      adjustments: { ...defaultImageAdjustments },
       createdAt: new Date().toISOString()
     });
   }
@@ -1543,12 +1843,7 @@ function saveProcessedImage() {
   const current = activeCase();
   const record = selectedImage();
   if (!current || !record || !imageEditor.img) return;
-  record.dataUrl = els.imageCanvas.toDataURL("image/png", 0.92);
-  record.name = `${record.name.replace(/ \(处理\)$/, "")} (处理)`;
-  record.updatedAt = new Date().toISOString();
-  current.updatedAt = new Date().toISOString();
-  persist();
-  render();
+  commitImageVersion(record, els.imageCanvas.toDataURL("image/png", 0.92), "处理");
 }
 
 function saveMeasurement(type) {
