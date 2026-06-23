@@ -35,7 +35,7 @@ const introSteps = [
 ];
 
 const tutorialGuides = {
-  overview: ["Case Intake Guide", "如何录入一个跟骨骨折病例", "先完成病例编号、可见范围、受伤机制、合并损伤和隐私检查。字段变更会自动保存，也可以点“暂存当前病例”手动确认。"],
+  overview: ["Case Intake Guide", "如何录入一个跟骨骨折病例", "先完成病例编号、受伤机制、合并损伤和隐私检查。病例可见范围在左侧病例卡片中选择，字段变更会自动保存，也可以点“保存”手动确认。"],
   classify: ["Classification Guide", "如何完成分型记录", "Essex-Lopresti、Sanders 和 Zwipp 作为同等重要的记录入口填写，最后再补充骨折脱位型和特殊情况。"],
   images: ["Image Workspace Guide", "如何上传和处理影像", "批量上传后先分类，再按单张影像做裁剪、黑白滤镜、亮度、对比度、锐化和四点矫正。操作失误可后退、前进或恢复原始图。"],
   measure: ["Measurement Guide", "如何做角度测量", "选择影像后依次点击四个点，两点确定第一条线，两点确定第二条线，系统会计算夹角，医生确认后记录到对应角度。"],
@@ -536,6 +536,27 @@ function updateCase(patch) {
   renderCaseList();
 }
 
+function deleteCase(caseId) {
+  const index = state.cases.findIndex((item) => item.id === caseId);
+  if (index < 0) return;
+  const item = state.cases[index];
+  const confirmed = window.confirm(`确定删除病例 ${item.code} 吗？该操作会同时删除本机保存的私密随访信息。`);
+  if (!confirmed) return;
+  state.cases.splice(index, 1);
+  privateState.cases ||= {};
+  delete privateState.cases[caseId];
+  if (state.activeCaseId === caseId) {
+    const next = state.cases[Math.min(index, state.cases.length - 1)];
+    state.activeCaseId = next?.id || null;
+    imageEditor.imageId = null;
+    measurePoints = [];
+  }
+  persist();
+  persistPrivate();
+  render();
+  markSaved("已删除病例并保存");
+}
+
 function updateNestedCase(path, value) {
   const current = activeCase();
   if (!current) return;
@@ -555,6 +576,16 @@ function privacyLabel(value) {
     public: "公开教学",
     research: "多中心研究"
   }[value] || "私有";
+}
+
+function privacyOptions(selected = "private") {
+  return [
+    ["private", "私有"],
+    ["admin", "管理员可见"],
+    ["team", "圈内讨论"],
+    ["public", "公开教学"],
+    ["research", "多中心研究"]
+  ].map(([value, label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`).join("");
 }
 
 function syncVisibilityUi(value) {
@@ -598,17 +629,27 @@ function renderCaseList() {
   els.caseList.innerHTML = filtered.map((item) => {
     const active = item.id === state.activeCaseId ? " active" : "";
     const tags = [
-      privacyLabel(item.privacyLevel),
       item.side || "侧别未填",
       item.classification?.essex || (item.classification?.sanders ? `Sanders ${item.classification.sanders}` : "待分型")
     ];
     return `
-      <button class="case-item${active}" data-case-id="${item.id}">
-        <strong>${escapeHtml(item.code)}</strong>
-        <span>${escapeHtml(caseMechanismLabel(item) || "受伤机制未填写")}</span>
-        <span>${item.images.length} 张影像 · ${item.comments.length} 条讨论</span>
-        <span class="case-tags">${tags.map((tag) => `<em>${escapeHtml(tag)}</em>`).join("")}</span>
-      </button>
+      <article class="case-item${active}" data-case-id="${item.id}">
+        <button class="case-open" type="button" data-case-open="${item.id}">
+          <strong>${escapeHtml(item.code)}</strong>
+          <span>${escapeHtml(caseMechanismLabel(item) || "受伤机制未填写")}</span>
+          <span>${item.images.length} 张影像 · ${item.comments.length} 条讨论</span>
+          <span class="case-tags">${tags.map((tag) => `<em>${escapeHtml(tag)}</em>`).join("")}</span>
+        </button>
+        <div class="case-controls">
+          <label class="case-privacy-control">
+            可见范围
+            <select data-case-privacy="${item.id}" aria-label="${escapeHtml(item.code)} 可见范围">
+              ${privacyOptions(item.privacyLevel)}
+            </select>
+          </label>
+          <button class="case-delete" type="button" data-delete-case="${item.id}">删除病例</button>
+        </div>
+      </article>
     `;
   }).join("");
 }
@@ -1530,13 +1571,33 @@ function wireEvents() {
   els.caseSearch.addEventListener("input", renderCaseList);
 
   els.caseList.addEventListener("click", (event) => {
-    const item = event.target.closest("[data-case-id]");
+    const deleteButton = event.target.closest("[data-delete-case]");
+    if (deleteButton) {
+      deleteCase(deleteButton.dataset.deleteCase);
+      return;
+    }
+    const item = event.target.closest("[data-case-open]");
     if (!item) return;
-    state.activeCaseId = item.dataset.caseId;
+    state.activeCaseId = item.dataset.caseOpen;
     persist();
     measurePoints = [];
     imageEditor.imageId = null;
     render();
+  });
+
+  els.caseList.addEventListener("change", (event) => {
+    const select = event.target.closest("[data-case-privacy]");
+    if (!select) return;
+    const item = state.cases.find((caseItem) => caseItem.id === select.dataset.casePrivacy);
+    if (!item) return;
+    item.privacyLevel = select.value;
+    item.updatedAt = new Date().toISOString();
+    persist();
+    if (item.id === state.activeCaseId) {
+      els.fields.privacyLevel.value = select.value;
+      syncVisibilityUi(select.value);
+    }
+    renderCaseList();
   });
 
   els.tabs.forEach((tab) => {
@@ -1554,10 +1615,10 @@ function wireEvents() {
   els.tempSave.addEventListener("click", () => {
     persist();
     persistPrivate();
-    markSaved("已暂存当前病例");
+    markSaved("已保存当前病例");
   });
 
-  const directFields = ["caseCode", "privacyLevel", "ageBand", "sex", "side", "threeStepNotes"];
+  const directFields = ["caseCode", "ageBand", "sex", "side", "threeStepNotes"];
   directFields.forEach((key) => {
     els.fields[key].addEventListener("input", () => {
       const map = { caseCode: "code" };
@@ -1575,14 +1636,6 @@ function wireEvents() {
     const fieldName = injuryFieldName(key);
     els.fields[`injury${fieldName}`].addEventListener("change", updateCombinedInjuryFromFields);
     els.fields[`injury${fieldName}Detail`].addEventListener("input", updateCombinedInjuryFromFields);
-  });
-
-  els.visibilityCards.forEach((card) => {
-    card.addEventListener("click", () => {
-      els.fields.privacyLevel.value = card.dataset.visibilityCard;
-      updateCase({ privacyLevel: card.dataset.visibilityCard });
-      syncVisibilityUi(card.dataset.visibilityCard);
-    });
   });
 
   els.fields.adminApplicationReason.addEventListener("input", () => {

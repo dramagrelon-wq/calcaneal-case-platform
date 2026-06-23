@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=12">
+    <link rel="stylesheet" href="styles.css?v=13">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -259,13 +259,13 @@
             <div class="tutorial-copy">
               <p class="eyebrow" id="tutorialEyebrow">Case Intake Guide</p>
               <h3 id="tutorialTitle">如何录入一个跟骨骨折病例</h3>
-              <p id="tutorialText">先完成病例编号、可见范围、受伤机制、合并损伤和隐私检查，系统会自动暂存当前病例。</p>
+              <p id="tutorialText">先完成病例编号、受伤机制、合并损伤和隐私检查，病例可见范围在左侧病例卡片中选择，系统会自动保存当前病例。</p>
             </div>
           </section>
 
           <div class="autosave-bar" aria-live="polite">
             <span id="saveStatus">已自动保存</span>
-            <button class="ghost-button" id="tempSave" type="button">暂存当前病例</button>
+            <button class="ghost-button" id="tempSave" type="button">保存</button>
           </div>
 
           <section class="tab-panel active" id="overviewPanel">
@@ -282,16 +282,7 @@
                 病例编号
                 <input id="caseCode" placeholder="CF-2026-001">
               </label>
-              <label>
-                病例可见范围
-                <select id="privacyLevel">
-                  <option value="private">私有</option>
-                  <option value="admin">管理员可见</option>
-                  <option value="team">圈内讨论</option>
-                  <option value="public">公开教学</option>
-                  <option value="research">多中心研究</option>
-                </select>
-              </label>
+              <input type="hidden" id="privacyLevel" value="private">
               <label>
                 年龄段
                 <select id="ageBand">
@@ -366,6 +357,7 @@
 
             <div class="visibility-guide">
               <h3>病例可见范围说明</h3>
+              <p class="helper-text">实际可见范围请在左侧病例卡片中选择；这里用于说明各范围的含义。</p>
               <div class="visibility-options">
                 <article data-visibility-card="private">
                   <strong>私有</strong>

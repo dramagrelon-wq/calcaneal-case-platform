@@ -42,7 +42,7 @@ const htmlChecks = [
   "播放介绍",
   "进入病例系统",
   "本页教学视频",
-  "暂存当前病例",
+  "病例可见范围在左侧病例卡片中选择",
   "平台怎么用",
   "公开影像素材",
   "Böhler 角公开教学图",
@@ -114,6 +114,9 @@ const appChecks = [
   "renderAccessGate",
   "openAccessGate",
   "toggleIntro",
+  "data-case-privacy",
+  "deleteCase",
+  "删除病例",
   "suggestClassification",
   "exportData",
   "importData"

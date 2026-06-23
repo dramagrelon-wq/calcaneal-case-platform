@@ -800,13 +800,68 @@ textarea:focus {
   background: var(--accent-soft);
 }
 
-.case-item strong {
+.case-open {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.case-open:focus-visible {
+  outline: 3px solid rgba(23, 107, 106, 0.18);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+.case-open strong {
   font-size: 15px;
 }
 
-.case-item span {
+.case-open span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.case-controls {
+  display: grid;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(31, 45, 43, 0.08);
+}
+
+.case-privacy-control {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.case-privacy-control select {
+  min-height: 36px;
+  font-size: 13px;
+}
+
+.case-delete {
+  min-height: 36px;
+  border: 1px solid #e6bbb4;
+  border-radius: 8px;
+  background: #fff8f6;
+  color: #9b3327;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.case-delete:hover,
+.case-delete:focus-visible {
+  border-color: #c94f40;
+  background: #fff0ec;
 }
 
 .case-tags {
@@ -1060,7 +1115,6 @@ textarea:focus {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
-  cursor: pointer;
 }
 
 .visibility-options article.active {

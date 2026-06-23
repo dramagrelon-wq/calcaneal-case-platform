@@ -1,8 +1,8 @@
-const CACHE_NAME = "calcaneal-case-v12";
+const CACHE_NAME = "calcaneal-case-v13";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=12",
+  "./styles.css?v=13",
   "./app.js",
   "./manifest.webmanifest",
   "./assets/icon.svg"
