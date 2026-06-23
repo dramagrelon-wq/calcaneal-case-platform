@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=16">
+    <link rel="stylesheet" href="styles.css?v=17">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -639,6 +639,7 @@
                 <div>
                   <h3>影像分类</h3>
                   <p class="helper-text">支持术前 X 线/CT、术中图片、术后 X 线/CT和其他影像资料。</p>
+                  <p class="upload-status" id="imageUploadStatus" aria-live="polite">未选择影像</p>
                   <div id="imageList" class="image-list"></div>
                 </div>
                 <p class="helper-text">上传的普通图片会经 Canvas 重新编码，便于去除常见 EXIF metadata。DICOM 支持将在后续加入。</p>

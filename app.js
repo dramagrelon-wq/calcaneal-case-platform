@@ -189,6 +189,7 @@ const els = {
   applyPerspective: $("#applyPerspective"),
   resetPerspective: $("#resetPerspective"),
   rotateImage: $("#rotateImage"),
+  imageUploadStatus: $("#imageUploadStatus"),
   undoImage: $("#undoImage"),
   redoImage: $("#redoImage"),
   resetOriginalImage: $("#resetOriginalImage"),
@@ -755,6 +756,7 @@ function renderImages() {
           <select data-image-category="${image.id}" aria-label="影像分类">
             ${imageCategoryOptions(image.category)}
           </select>
+          <button class="image-delete" type="button" data-delete-image="${image.id}" aria-label="删除 ${escapeHtml(image.name)}">删除</button>
         </article>
       `).join("")
     : `<p class="helper-text">暂无影像。可批量上传后逐张设置分类。</p>`;
@@ -768,6 +770,31 @@ function renderImages() {
     clearCanvas(els.imageCanvas, "上传影像后可进行裁剪、增强、保存");
     clearCanvas(els.measureCanvas, "上传并选择影像后可进行角度测量");
   }
+}
+
+function deleteImage(imageId) {
+  const current = activeCase();
+  if (!current) return;
+  const index = current.images.findIndex((image) => image.id === imageId);
+  if (index < 0) return;
+  const image = current.images[index];
+  const confirmed = window.confirm(`确定删除影像「${image.name}」吗？已保存的测量截图会保留。`);
+  if (!confirmed) return;
+  current.images.splice(index, 1);
+  if (imageEditor.imageId === imageId) {
+    const next = current.images[Math.min(index, current.images.length - 1)];
+    imageEditor.imageId = next?.id || null;
+    imageEditor.img = null;
+    imageEditor.crop = null;
+    measurePoints = [];
+    perspectiveMode = false;
+    perspectivePoints = [];
+  }
+  current.updatedAt = new Date().toISOString();
+  persist();
+  renderImages();
+  renderMeasurements();
+  markSaved("已删除影像");
 }
 
 function imageCategoryOptions(selected = "other") {
@@ -881,6 +908,7 @@ function renderMeasurements() {
         ${latest ? `
           <span>${escapeHtml(latestValue)} · ${new Date(latest.createdAt).toLocaleString()}</span>
           <p>${escapeHtml(latest.imageName || "未绑定影像")}</p>
+          ${latest.snapshotDataUrl ? `<img class="measurement-snapshot" src="${escapeHtml(latest.snapshotDataUrl)}" alt="${escapeHtml(labelForMeasurement(type))}测量截图">` : ""}
         ` : `<p>暂无记录</p>`}
       </article>
     `;
@@ -1823,6 +1851,11 @@ function wireEvents() {
     renderImages();
   });
   els.imageList.addEventListener("click", (event) => {
+    const deleteButton = event.target.closest("[data-delete-image]");
+    if (deleteButton) {
+      deleteImage(deleteButton.dataset.deleteImage);
+      return;
+    }
     const pick = event.target.closest("[data-pick-image]");
     if (!pick) return;
     imageEditor.imageId = pick.dataset.pickImage;
@@ -1981,30 +2014,61 @@ function canvasPoint(canvas, event) {
   };
 }
 
+function setUploadStatus(text) {
+  if (els.imageUploadStatus) els.imageUploadStatus.textContent = text;
+}
+
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
 async function handleImageUpload(event) {
   const current = activeCase();
   if (!current) return;
   const files = Array.from(event.target.files || []);
-  for (const file of files) {
-    const dataUrl = await readAndSanitizeImage(file);
-    current.images.push({
-      id: makeId(),
-      name: file.name.replace(/\.[^.]+$/, "") || "影像",
-      category: inferImageCategory(file.name),
-      type: file.type || "image/png",
-      dataUrl,
-      originalDataUrl: dataUrl,
-      history: [dataUrl],
-      historyIndex: 0,
-      adjustments: { ...defaultImageAdjustments },
-      createdAt: new Date().toISOString()
-    });
+  if (!files.length) return;
+  const startCount = current.images.length;
+  let uploadedCount = 0;
+  let failedCount = 0;
+  setUploadStatus(`正在处理 0/${files.length} 张影像`);
+  for (const [index, file] of files.entries()) {
+    setUploadStatus(`正在处理 ${index + 1}/${files.length}：${file.name}`);
+    await nextFrame();
+    try {
+      const dataUrl = await readAndSanitizeImage(file);
+      const image = {
+        id: makeId(),
+        name: file.name.replace(/\.[^.]+$/, "") || "影像",
+        category: inferImageCategory(file.name),
+        type: "image/jpeg",
+        dataUrl,
+        originalDataUrl: dataUrl,
+        history: [dataUrl],
+        historyIndex: 0,
+        adjustments: { ...defaultImageAdjustments },
+        createdAt: new Date().toISOString()
+      };
+      current.images.push(image);
+      if (!imageEditor.imageId || current.images.length === startCount + 1) {
+        imageEditor.imageId = image.id;
+        imageEditor.img = null;
+      }
+      renderImages();
+      uploadedCount += 1;
+      setUploadStatus(`已加入 ${uploadedCount}/${files.length} 张影像`);
+    } catch {
+      failedCount += 1;
+      setUploadStatus(`有影像处理失败：${file.name}`);
+    }
   }
   current.privacyChecks.hideMetadata = true;
   current.updatedAt = new Date().toISOString();
   event.target.value = "";
   persist();
   render();
+  setUploadStatus(failedCount
+    ? `已完成 ${uploadedCount} 张，失败 ${failedCount} 张`
+    : `已完成上传 ${uploadedCount} 张影像`);
 }
 
 function readAndSanitizeImage(file) {
@@ -2022,7 +2086,7 @@ function readAndSanitizeImage(file) {
         canvas.height = Math.round(img.naturalHeight * ratio);
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/png", 0.92));
+        resolve(canvas.toDataURL("image/jpeg", 0.9));
       };
       img.src = reader.result;
     };
@@ -2037,17 +2101,31 @@ function saveProcessedImage() {
   commitImageVersion(record, els.imageCanvas.toDataURL("image/png", 0.92), "处理");
 }
 
+function measurementSnapshotDataUrl() {
+  try {
+    return els.measureCanvas.toDataURL("image/jpeg", 0.86);
+  } catch {
+    return "";
+  }
+}
+
+function copyMeasurePoints(limit = measurePoints.length) {
+  return measurePoints.slice(0, limit).map((point) => ({ x: point.x, y: point.y }));
+}
+
 function saveMeasurement(type) {
   const current = activeCase();
   const image = selectedImage();
   const angle = currentAngle();
   if (!current || !image || !angle || !type) return;
+  const snapshotDataUrl = measurementSnapshotDataUrl();
   current.measurements.unshift({
     id: makeId(),
     type,
     view: activeMeasurementView(),
     angle,
-    points: measurePoints,
+    points: copyMeasurePoints(4),
+    snapshotDataUrl,
     imageId: image.id,
     imageName: image.name,
     createdAt: new Date().toISOString()
@@ -2062,14 +2140,17 @@ function saveMeasurement(type) {
 function saveCtDepression() {
   const current = activeCase();
   const image = selectedImage();
-  const valueMm = Number(els.ctDepressionValue.value);
-  if (!current || !image || !Number.isFinite(valueMm) || valueMm < 0) return;
+  const rawValue = els.ctDepressionValue.value.trim();
+  const valueMm = Number(rawValue);
+  if (!current || !image || !rawValue || !Number.isFinite(valueMm) || valueMm < 0) return;
+  const snapshotDataUrl = measurementSnapshotDataUrl();
   current.measurements.unshift({
     id: makeId(),
     type: "posterior-facet-depression",
     view: "ct",
     valueMm,
-    points: measurePoints.slice(0, 2),
+    points: copyMeasurePoints(2),
+    snapshotDataUrl,
     imageId: image.id,
     imageName: image.name,
     createdAt: new Date().toISOString()

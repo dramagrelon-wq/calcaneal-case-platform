@@ -1253,9 +1253,16 @@ textarea:focus {
   margin-top: 10px;
 }
 
+.upload-status {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .image-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(130px, 170px);
+  grid-template-columns: minmax(0, 1fr) minmax(130px, 170px) auto;
   gap: 8px;
   align-items: center;
 }
@@ -1278,6 +1285,33 @@ textarea:focus {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent-strong);
+}
+
+.image-delete {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #e6bbb4;
+  border-radius: 8px;
+  background: #fff8f6;
+  color: #9b3327;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.image-delete:hover,
+.image-delete:focus-visible {
+  border-color: #c94f40;
+  background: #fff0ec;
+}
+
+.measurement-snapshot {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #111817;
 }
 
 .privacy-checklist p,
