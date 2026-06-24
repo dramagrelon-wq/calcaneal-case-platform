@@ -1085,6 +1085,23 @@ textarea:focus {
   min-height: 18px;
 }
 
+.soft-tissue-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.soft-tissue-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+}
+
 .classification-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -1105,7 +1122,7 @@ textarea:focus {
 
 .visibility-options {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -1153,6 +1170,17 @@ textarea:focus {
 .admin-panel.active,
 .research-panel.active {
   display: grid;
+}
+
+.research-closed-panel {
+  border-style: dashed;
+  opacity: 0.72;
+}
+
+.disabled-action:disabled {
+  border-color: var(--line);
+  background: #eef1f0;
+  color: var(--muted);
 }
 
 .admin-panel {
@@ -1229,6 +1257,29 @@ textarea:focus {
 .ct-measurement-panel {
   display: grid;
   gap: 10px;
+}
+
+.measurement-grid {
+  grid-template-columns: minmax(420px, 1.35fr) minmax(300px, 360px);
+  align-items: start;
+}
+
+.measurement-canvas-card {
+  aspect-ratio: 4 / 3;
+}
+
+.measurement-canvas-card canvas {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 4 / 3;
+}
+
+.measurement-grid .tool-panel {
+  gap: 12px;
+}
+
+.measurement-grid .measurement-actions {
+  grid-template-columns: 1fr;
 }
 
 .measurement-actions {
@@ -1406,6 +1457,30 @@ input[type="range"] {
 .comment-card span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.danger-button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #e6bbb4;
+  border-radius: 8px;
+  background: #fff8f6;
+  color: #9b3327;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.danger-button:hover,
+.danger-button:focus-visible {
+  border-color: #c94f40;
+  background: #fff0ec;
 }
 
 .reminder-badge {
@@ -1588,6 +1663,7 @@ input[type="range"] {
 
   .section-actions,
   .fragment-checks,
+  .soft-tissue-options,
   .bulk-image-tools,
   .measurement-actions,
   .image-row {

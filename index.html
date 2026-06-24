@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=18">
+    <link rel="stylesheet" href="styles.css?v=19">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -345,6 +345,17 @@
                   <span><input type="checkbox" id="injuryOther"> 其他</span>
                   <input id="injuryOtherDetail" placeholder="其他部位或特殊情况">
                 </label>
+                <label class="wide">
+                  <span><input type="checkbox" id="injurySoftTissue"> 软组织损伤</span>
+                  <input id="injurySoftTissueDetail" placeholder="皮肤张力、范围、处理方式等补充说明">
+                </label>
+                <div class="soft-tissue-options wide">
+                  <label><input type="checkbox" id="softTissueBlister"> 水泡</label>
+                  <label><input type="checkbox" id="softTissueBloodBlister"> 血泡</label>
+                  <label><input type="checkbox" id="softTissueSwelling"> 肿胀</label>
+                  <label><input type="checkbox" id="softTissueOpenWound"> 开放伤</label>
+                  <label><input type="checkbox" id="softTissueCompartment"> 骨筋膜室综合征</label>
+                </div>
               </div>
             </div>
 
@@ -367,10 +378,6 @@
                 <article data-visibility-card="public">
                   <strong>公开教学</strong>
                   <p>对通过准入的医生公开展示，适合质量较高、已充分去标识化的教学病例。</p>
-                </article>
-                <article data-visibility-card="research">
-                  <strong>多中心研究</strong>
-                  <p>用于科研病例候选。具体申请流程暂待制定，后续需伦理审批、机构资质和研究规则审核。</p>
                 </article>
               </div>
             </div>
@@ -450,24 +457,25 @@
               </div>
             </div>
 
-            <div class="research-panel" id="researchPanel">
+            <div class="research-panel active research-closed-panel" id="researchPanel">
               <div>
-                <h3>多中心研究申请</h3>
-                <p>多中心研究流程暂待制定。后续会根据研究方案补充伦理审批、入组标准、数据字段、授权/知情同意、质控和审核流程。</p>
+                <h3>多中心研究</h3>
+                <p>多中心研究暂未开放申请。它会作为独立研究入组选项，不再等同于病例可见范围；同一病例将来可以选择私有、管理员可见、圈内教学或公开教学，同时再决定是否进入多中心研究候选。</p>
               </div>
+              <button class="tool-button disabled-action" type="button" disabled>多中心研究暂未开放</button>
               <div class="form-grid">
                 <label>
                   伦理审批编号
-                  <input id="ethicsApprovalId" placeholder="IRB/伦理批件编号">
+                  <input id="ethicsApprovalId" placeholder="IRB/伦理批件编号" disabled>
                 </label>
                 <label class="file-upload-label">
                   伦理审批文件
-                  <input type="file" id="ethicsApprovalFile" accept=".pdf,image/*">
+                  <input type="file" id="ethicsApprovalFile" accept=".pdf,image/*" disabled>
                   <span id="ethicsApprovalFileName">未上传</span>
                 </label>
                 <label class="file-upload-label">
                   资质材料
-                  <input type="file" id="credentialFile" accept=".pdf,image/*">
+                  <input type="file" id="credentialFile" accept=".pdf,image/*" disabled>
                   <span id="credentialFileName">未上传</span>
                 </label>
               </div>
@@ -676,8 +684,8 @@
             </div>
 
             <div class="measurement-grid">
-              <div class="canvas-card">
-                <canvas id="measureCanvas" width="960" height="640" aria-label="角度测量画布"></canvas>
+              <div class="canvas-card measurement-canvas-card">
+                <canvas id="measureCanvas" width="960" height="720" aria-label="角度测量画布"></canvas>
               </div>
               <div class="tool-panel">
                 <div class="measurement-context">

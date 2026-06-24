@@ -19,6 +19,7 @@ let imageEditor = {
   crop: null
 };
 let measurePoints = [];
+let editingFollowupId = null;
 let perspectiveMode = false;
 let perspectivePoints = [];
 let draggedPerspectivePoint = null;
@@ -43,13 +44,23 @@ const tutorialGuides = {
   discussion: ["Discussion Guide", "如何组织病例讨论", "讨论区用于记录术前计划、复位策略、影像判断和术后复盘。公开前仍需确认病例已经充分去标识化。"]
 };
 
-const injuryKeys = ["spine", "lowerLimb", "pelvis", "foot", "other"];
+const injuryKeys = ["spine", "lowerLimb", "pelvis", "foot", "softTissue", "other"];
 const injuryLabels = {
   spine: "脊柱",
   lowerLimb: "下肢",
   pelvis: "骨盆",
   foot: "足部",
+  softTissue: "软组织损伤",
   other: "其他"
+};
+
+const softTissueKeys = ["blister", "bloodBlister", "swelling", "openWound", "compartment"];
+const softTissueLabels = {
+  blister: "水泡",
+  bloodBlister: "血泡",
+  swelling: "肿胀",
+  openWound: "开放伤",
+  compartment: "骨筋膜室综合征"
 };
 
 const defaultImageAdjustments = {
@@ -138,6 +149,13 @@ const els = {
     injuryPelvisDetail: $("#injuryPelvisDetail"),
     injuryFoot: $("#injuryFoot"),
     injuryFootDetail: $("#injuryFootDetail"),
+    injurySoftTissue: $("#injurySoftTissue"),
+    injurySoftTissueDetail: $("#injurySoftTissueDetail"),
+    softTissueBlister: $("#softTissueBlister"),
+    softTissueBloodBlister: $("#softTissueBloodBlister"),
+    softTissueSwelling: $("#softTissueSwelling"),
+    softTissueOpenWound: $("#softTissueOpenWound"),
+    softTissueCompartment: $("#softTissueCompartment"),
     injuryOther: $("#injuryOther"),
     injuryOtherDetail: $("#injuryOtherDetail"),
     threeStepNotes: $("#threeStepNotes"),
@@ -393,7 +411,8 @@ function normalizeCombinedInjuries(value, legacyText = "") {
   injuryKeys.forEach((key) => {
     base[key] = {
       checked: Boolean(value?.[key]?.checked),
-      detail: value?.[key]?.detail || ""
+      detail: value?.[key]?.detail || "",
+      findings: { ...(value?.[key]?.findings || {}) }
     };
   });
   if (!value && legacyText) {
@@ -408,7 +427,11 @@ function combinedInjurySummary(item) {
     .filter((key) => combined[key]?.checked)
     .map((key) => {
       const detail = combined[key]?.detail?.trim();
-      return detail ? `${injuryLabels[key]}：${detail}` : injuryLabels[key];
+      const findings = key === "softTissue"
+        ? softTissueKeys.filter((item) => combined[key]?.findings?.[item]).map((item) => softTissueLabels[item])
+        : [];
+      const text = [findings.join("、"), detail].filter(Boolean).join("；");
+      return text ? `${injuryLabels[key]}：${text}` : injuryLabels[key];
     });
   return parts.join("；");
 }
@@ -443,7 +466,16 @@ function updateCombinedInjuryFromFields() {
     const detail = els.fields[`injury${injuryFieldName(key)}Detail`];
     combinedInjuries[key] = {
       checked: Boolean(checkbox.checked),
-      detail: detail.value.trim()
+      detail: detail.value.trim(),
+      findings: key === "softTissue"
+        ? {
+            blister: els.fields.softTissueBlister.checked,
+            bloodBlister: els.fields.softTissueBloodBlister.checked,
+            swelling: els.fields.softTissueSwelling.checked,
+            openWound: els.fields.softTissueOpenWound.checked,
+            compartment: els.fields.softTissueCompartment.checked
+          }
+        : {}
     };
   });
   updateCase({
@@ -458,6 +490,7 @@ function injuryFieldName(key) {
     lowerLimb: "LowerLimb",
     pelvis: "Pelvis",
     foot: "Foot",
+    softTissue: "SoftTissue",
     other: "Other"
   }[key];
 }
@@ -476,7 +509,7 @@ function createCase(seed = {}) {
   const next = {
     id,
     code: seed.code || `CF-${new Date().getFullYear()}-${String(state.cases.length + 1).padStart(3, "0")}`,
-    privacyLevel: seed.privacyLevel || "private",
+    privacyLevel: normalizePrivacyLevel(seed.privacyLevel),
     ageBand: exactAgeValue(seed.age ?? seed.ageBand),
     sex: seed.sex || "",
     side: seed.side || "",
@@ -591,27 +624,30 @@ function privacyLabel(value) {
     private: "私有",
     admin: "管理员可见",
     team: "圈内讨论",
-    public: "公开教学",
-    research: "多中心研究"
+    public: "公开教学"
   }[value] || "私有";
 }
 
+function normalizePrivacyLevel(value = "private") {
+  return ["private", "admin", "team", "public"].includes(value) ? value : "private";
+}
+
 function privacyOptions(selected = "private") {
+  const normalized = normalizePrivacyLevel(selected);
   return [
     ["private", "私有"],
     ["admin", "管理员可见"],
     ["team", "圈内讨论"],
-    ["public", "公开教学"],
-    ["research", "多中心研究"]
-  ].map(([value, label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`).join("");
+    ["public", "公开教学"]
+  ].map(([value, label]) => `<option value="${value}" ${value === normalized ? "selected" : ""}>${label}</option>`).join("");
 }
 
 function syncVisibilityUi(value) {
-  els.privacyPill.textContent = privacyLabel(value);
-  els.adminPanel.classList.toggle("active", value === "admin");
-  els.researchPanel.classList.toggle("active", value === "research");
+  const normalized = normalizePrivacyLevel(value);
+  els.privacyPill.textContent = privacyLabel(normalized);
+  els.adminPanel.classList.toggle("active", normalized === "admin");
   els.visibilityCards.forEach((card) => {
-    card.classList.toggle("active", card.dataset.visibilityCard === value);
+    card.classList.toggle("active", card.dataset.visibilityCard === normalized);
   });
 }
 
@@ -685,6 +721,7 @@ function renderActiveCase() {
   if (!$(".tabs")) window.location.reload();
 
   syncActiveTab();
+  current.privacyLevel = normalizePrivacyLevel(current.privacyLevel);
   els.fields.caseCode.value = current.code;
   els.fields.privacyLevel.value = current.privacyLevel;
   current.ageBand = exactAgeValue(current.ageBand);
@@ -702,6 +739,12 @@ function renderActiveCase() {
     els.fields[`injury${fieldName}`].checked = Boolean(current.combinedInjuries[key]?.checked);
     els.fields[`injury${fieldName}Detail`].value = current.combinedInjuries[key]?.detail || "";
   });
+  const softFindings = current.combinedInjuries.softTissue?.findings || {};
+  els.fields.softTissueBlister.checked = Boolean(softFindings.blister);
+  els.fields.softTissueBloodBlister.checked = Boolean(softFindings.bloodBlister);
+  els.fields.softTissueSwelling.checked = Boolean(softFindings.swelling);
+  els.fields.softTissueOpenWound.checked = Boolean(softFindings.openWound);
+  els.fields.softTissueCompartment.checked = Boolean(softFindings.compartment);
   els.fields.threeStepNotes.value = current.threeStepNotes;
   const local = activePrivateCase();
   els.fields.localPatientName.value = local.patientName || "";
@@ -975,6 +1018,10 @@ function renderFollowupCard(item) {
       <span class="reminder-badge ${reminder.className}">${escapeHtml(reminder.label)}</span>
       ${outcomeLabel ? `<span class="reminder-badge scheduled">终极指标：${escapeHtml(outcomeLabel)}</span>` : ""}
       <p>${escapeHtml(item.notes || "无特殊情况")}</p>
+      <div class="record-actions">
+        <button class="tool-button" type="button" data-edit-followup="${item.id}">修改</button>
+        <button class="danger-button" type="button" data-delete-followup="${item.id}">删除</button>
+      </div>
     </article>
   `;
 }
@@ -1767,12 +1814,12 @@ function wireEvents() {
     if (!select) return;
     const item = state.cases.find((caseItem) => caseItem.id === select.dataset.casePrivacy);
     if (!item) return;
-    item.privacyLevel = select.value;
+    item.privacyLevel = normalizePrivacyLevel(select.value);
     item.updatedAt = new Date().toISOString();
     persist();
     if (item.id === state.activeCaseId) {
-      els.fields.privacyLevel.value = select.value;
-      syncVisibilityUi(select.value);
+      els.fields.privacyLevel.value = item.privacyLevel;
+      syncVisibilityUi(item.privacyLevel);
     }
     renderCaseList();
   });
@@ -1818,6 +1865,10 @@ function wireEvents() {
     const fieldName = injuryFieldName(key);
     els.fields[`injury${fieldName}`].addEventListener("change", updateCombinedInjuryFromFields);
     els.fields[`injury${fieldName}Detail`].addEventListener("input", updateCombinedInjuryFromFields);
+  });
+
+  ["softTissueBlister", "softTissueBloodBlister", "softTissueSwelling", "softTissueOpenWound", "softTissueCompartment"].forEach((key) => {
+    els.fields[key].addEventListener("change", updateCombinedInjuryFromFields);
   });
 
   els.fields.adminApplicationReason.addEventListener("input", () => {
@@ -2021,6 +2072,15 @@ function wireEvents() {
   els.followupStatus.addEventListener("change", () => updateNestedCase("followupPlan.status", els.followupStatus.value));
   els.finalOutcome.addEventListener("change", () => updateNestedCase("followupPlan.finalOutcome", els.finalOutcome.value));
   els.addFollowup.addEventListener("click", addFollowup);
+  els.followupList.addEventListener("click", (event) => {
+    const editButton = event.target.closest("[data-edit-followup]");
+    if (editButton) {
+      editFollowup(editButton.dataset.editFollowup);
+      return;
+    }
+    const deleteButton = event.target.closest("[data-delete-followup]");
+    if (deleteButton) deleteFollowup(deleteButton.dataset.deleteFollowup);
+  });
   els.addComment.addEventListener("click", addComment);
   els.exportData.addEventListener("click", exportData);
   els.importData.addEventListener("change", importData);
@@ -2209,8 +2269,7 @@ function saveCtDepression() {
 function addFollowup() {
   const current = activeCase();
   if (!current) return;
-  current.followups.unshift({
-    id: makeId(),
+  const payload = {
     stage: els.followupStage.value,
     dueDate: els.followupDueDate.value,
     vas: els.vasScore.value,
@@ -2219,15 +2278,61 @@ function addFollowup() {
     status: els.followupStatus.value,
     finalOutcome: els.finalOutcome.value,
     notes: els.followupNotes.value,
-    createdAt: new Date().toISOString()
-  });
+    updatedAt: new Date().toISOString()
+  };
+  if (editingFollowupId) {
+    const existing = current.followups.find((item) => item.id === editingFollowupId);
+    if (existing) Object.assign(existing, payload);
+  } else {
+    current.followups.unshift({
+      id: makeId(),
+      ...payload,
+      createdAt: new Date().toISOString()
+    });
+  }
+  resetFollowupForm();
+  current.updatedAt = new Date().toISOString();
+  persist();
+  renderFollowups();
+}
+
+function editFollowup(id) {
+  const current = activeCase();
+  const item = current?.followups.find((entry) => entry.id === id);
+  if (!item) return;
+  editingFollowupId = id;
+  els.followupStage.value = item.stage || "术后 2 周";
+  els.followupDueDate.value = item.dueDate || "";
+  els.vasScore.value = item.vas || "";
+  els.functionScore.value = item.functionScore || "";
+  els.weightBearing.value = item.weightBearing || "未记录";
+  els.followupStatus.value = item.status || "ongoing";
+  els.finalOutcome.value = item.finalOutcome || "";
+  els.followupNotes.value = item.notes || "";
+  els.addFollowup.textContent = "保存修改";
+}
+
+function deleteFollowup(id) {
+  const current = activeCase();
+  if (!current) return;
+  const index = current.followups.findIndex((item) => item.id === id);
+  if (index < 0) return;
+  const confirmed = window.confirm("确定删除这条随访记录吗？");
+  if (!confirmed) return;
+  current.followups.splice(index, 1);
+  if (editingFollowupId === id) resetFollowupForm();
+  current.updatedAt = new Date().toISOString();
+  persist();
+  renderFollowups();
+}
+
+function resetFollowupForm() {
+  editingFollowupId = null;
   els.vasScore.value = "";
   els.functionScore.value = "";
   els.followupDueDate.value = "";
   els.followupNotes.value = "";
-  current.updatedAt = new Date().toISOString();
-  persist();
-  renderFollowups();
+  els.addFollowup.textContent = "添加随访";
 }
 
 function addComment() {
