@@ -6,7 +6,8 @@ const defaultState = {
   activeCaseId: null,
   activeTab: "overview",
   cases: [],
-  trash: []
+  trash: [],
+  discussionReads: {}
 };
 
 let state = loadState();
@@ -20,6 +21,7 @@ let imageEditor = {
   crop: null
 };
 let measurePoints = [];
+let editingMeasurementId = null;
 let editingFollowupId = null;
 let activeScoreDraft = null;
 let perspectiveMode = false;
@@ -122,6 +124,7 @@ function normalizeState(value) {
   };
   next.cases = Array.isArray(next.cases) ? next.cases : [];
   next.trash = Array.isArray(next.trash) ? next.trash : [];
+  next.discussionReads = next.discussionReads && typeof next.discussionReads === "object" ? next.discussionReads : {};
   next.activeTab = normalizeActiveTab(next.activeTab);
   next.activeCaseId = next.cases.some((item) => item.id === next.activeCaseId)
     ? next.activeCaseId
@@ -275,7 +278,7 @@ const els = {
   brightness: $("#brightness"),
   contrast: $("#contrast"),
   sharpen: $("#sharpen"),
-  measureCanvas: $("#measureCanvas"),
+  measureCanvas: $("#imageCanvas"),
   measurementView: $("#measurementView"),
   measurementImageSelect: $("#measurementImageSelect"),
   measurementReadoutLabel: $("#measurementReadoutLabel"),
@@ -309,6 +312,8 @@ const els = {
   applyScoreDraft: $("#applyScoreDraft"),
   commentBody: $("#commentBody"),
   addComment: $("#addComment"),
+  discussionBoard: $("#discussionBoard"),
+  caseReadingView: $("#caseReadingView"),
   commentList: $("#commentList")
 };
 
@@ -855,6 +860,7 @@ function renderCaseList() {
   els.caseCount.textContent = `${state.cases.length} 个病例`;
   els.caseList.innerHTML = filtered.map((item) => {
     const active = item.id === state.activeCaseId ? " active" : "";
+    const unread = unreadComments(item);
     const tags = [
       item.side || "侧别未填",
       item.classification?.essex || (item.classification?.sanders ? `Sanders ${item.classification.sanders}` : "待分型")
@@ -865,6 +871,7 @@ function renderCaseList() {
           <strong>${escapeHtml(item.code)}</strong>
           <span>${escapeHtml(caseMechanismLabel(item) || "受伤机制未填写")}</span>
           <span>${item.images.length} 张影像 · ${item.comments.length} 条讨论</span>
+          ${unread ? `<span class="discussion-badge">${unread}</span>` : ""}
           <span class="case-tags">${tags.map((tag) => `<em>${escapeHtml(tag)}</em>`).join("")}</span>
         </button>
         <div class="case-controls">
@@ -972,7 +979,9 @@ function renderImages() {
         <article class="image-row" data-image-id="${image.id}">
           <input class="image-check" type="checkbox" data-image-check="${image.id}" aria-label="选择 ${escapeHtml(image.name)}">
           <button class="image-pick ${image.id === (imageEditor.imageId || current.images[0]?.id) ? "active" : ""}" data-pick-image="${image.id}">
-            ${escapeHtml(image.name)}
+            <img src="${escapeHtml(image.dataUrl)}" alt="">
+            <span>${escapeHtml(image.name)}</span>
+            <em>${escapeHtml(imageCategoryLabel(image.category))}</em>
           </button>
           <select data-image-category="${image.id}" aria-label="影像分类">
             ${imageCategoryOptions(image.category)}
@@ -990,7 +999,9 @@ function renderImages() {
   } else {
     updateImageHistoryButtons(null);
     clearCanvas(els.imageCanvas, "上传影像后可进行裁剪、增强、保存");
-    clearCanvas(els.measureCanvas, "上传并选择影像后可进行角度测量");
+    if (els.measureCanvas !== els.imageCanvas) {
+      clearCanvas(els.measureCanvas, "上传并选择影像后可进行角度测量");
+    }
   }
 }
 
@@ -1156,22 +1167,20 @@ function renderMeasurements() {
   const current = activeCase();
   if (!current) return;
   syncMeasurementUi(current);
-  const types = ["bohler", "gissane", "hindfoot-varus", "step-off", "gap", "posterior-facet-depression", "custom"];
-  els.measurementList.innerHTML = types.map((type) => {
-    const records = current.measurements.filter((item) => item.type === type);
-    const latest = records[0];
-    const latestValue = measurementValueText(latest);
-    return `
-      <article class="record-card">
-        <strong>${escapeHtml(labelForMeasurement(type))}</strong>
-        ${latest ? `
-          <span>${escapeHtml(latestValue)} · ${new Date(latest.createdAt).toLocaleString()}</span>
-          <p>${escapeHtml(latest.imageName || "未绑定影像")}</p>
-          ${latest.snapshotDataUrl ? `<img class="measurement-snapshot" src="${escapeHtml(latest.snapshotDataUrl)}" alt="${escapeHtml(labelForMeasurement(type))}测量截图">` : ""}
-        ` : `<p>暂无记录</p>`}
+  els.measurementList.innerHTML = current.measurements.length
+    ? current.measurements.map((record) => `
+      <article class="record-card measurement-record ${record.id === editingMeasurementId ? "editing" : ""}">
+        <strong>${escapeHtml(labelForMeasurement(record.type))}</strong>
+        <span>${escapeHtml(measurementValueText(record))} · ${new Date(record.updatedAt || record.createdAt).toLocaleString()}</span>
+        <p>${escapeHtml(record.imageName || "未绑定影像")}</p>
+        ${record.snapshotDataUrl ? `<img class="measurement-snapshot" src="${escapeHtml(record.snapshotDataUrl)}" alt="${escapeHtml(labelForMeasurement(record.type))}测量截图">` : ""}
+        <div class="record-actions">
+          <button class="tool-button" type="button" data-edit-measurement="${record.id}">修改</button>
+          <button class="danger-button" type="button" data-delete-measurement="${record.id}">删除</button>
+        </div>
       </article>
-    `;
-  }).join("");
+    `).join("")
+    : `<p class="helper-text">暂无测量记录。选择测量小类后，在中间影像上点位并保存。</p>`;
 }
 
 function measurementValueText(record) {
@@ -1310,6 +1319,12 @@ function reminderStatus(dueDate) {
 function renderComments() {
   const current = activeCase();
   if (!current) return;
+  if (state.activeTab === "discussion") {
+    markDiscussionRead(current.id, false);
+    renderCaseList();
+  }
+  renderDiscussionBoard();
+  renderCaseReadingView(current);
   els.commentList.innerHTML = current.comments.length
     ? current.comments.map((item) => `
         <article class="comment-card">
@@ -1318,6 +1333,76 @@ function renderComments() {
         </article>
       `).join("")
     : `<p class="helper-text">暂无讨论。可以先记录术前计划、复位策略或术后复盘。</p>`;
+}
+
+function discussionVisibleCases() {
+  return state.cases.filter((item) => item.privacyLevel !== "private" || item.id === state.activeCaseId);
+}
+
+function unreadComments(item) {
+  const readAt = state.discussionReads?.[item.id] ? new Date(state.discussionReads[item.id]).getTime() : 0;
+  return (item.comments || []).filter((comment) => new Date(comment.createdAt).getTime() > readAt).length;
+}
+
+function markDiscussionRead(caseId, rerender = true) {
+  if (!caseId) return;
+  state.discussionReads ||= {};
+  state.discussionReads[caseId] = new Date().toISOString();
+  persist();
+  if (rerender) {
+    renderCaseList();
+    renderDiscussionBoard();
+  }
+}
+
+function renderDiscussionBoard() {
+  if (!els.discussionBoard) return;
+  const cases = discussionVisibleCases();
+  els.discussionBoard.innerHTML = cases.length
+    ? cases.map((item) => {
+        const unread = unreadComments(item);
+        return `
+          <button class="forum-case-card ${item.id === state.activeCaseId ? "active" : ""}" type="button" data-open-discussion-case="${item.id}">
+            <strong>${escapeHtml(item.code)}</strong>
+            <span>${escapeHtml(privacyLabel(item.privacyLevel))} · ${item.images.length} 张影像 · ${item.comments.length} 条讨论</span>
+            <em>${escapeHtml(caseMechanismLabel(item) || "受伤机制未填写")}</em>
+            ${unread ? `<b>${unread}</b>` : ""}
+          </button>
+        `;
+      }).join("")
+    : `<p class="helper-text">暂无可讨论病例。将病例设为管理员可见、圈内教学或公开教学后，会进入讨论区。</p>`;
+}
+
+function renderCaseReadingView(current) {
+  if (!els.caseReadingView || !current) return;
+  const latestMeasurement = current.measurements?.[0];
+  const latestFollowup = current.followups?.[0];
+  const imagePreview = current.images?.slice(0, 4).map((image) => `
+    <figure>
+      <img src="${escapeHtml(image.dataUrl)}" alt="${escapeHtml(image.name)}">
+      <figcaption>${escapeHtml(imageCategoryLabel(image.category))}</figcaption>
+    </figure>
+  `).join("");
+  els.caseReadingView.innerHTML = `
+    <div class="reading-header">
+      <div>
+        <p class="eyebrow">Standard Case View</p>
+        <h3>${escapeHtml(current.code)}</h3>
+      </div>
+      <span class="status-pill">${escapeHtml(privacyLabel(current.privacyLevel))}</span>
+    </div>
+    <div class="reading-grid">
+      <span>年龄/性别：${escapeHtml(current.ageBand || "-")} 岁 · ${escapeHtml(current.sex || "-")}</span>
+      <span>侧别：${escapeHtml(current.side || "-")}</span>
+      <span>受伤机制：${escapeHtml(caseMechanismLabel(current) || "-")}</span>
+      <span>合并损伤：${escapeHtml(combinedInjurySummary(current) || "无/未填")}</span>
+      <span>分型：${escapeHtml(current.classification?.essex || "Essex 待确认")} / ${escapeHtml(current.classification?.sanders || "Sanders 待确认")}</span>
+      <span>Zwipp：${escapeHtml(zwippPoints(current.classification || {}) ? `${zwippPoints(current.classification)} 个确认点` : "待补充")}</span>
+      <span>最新测量：${latestMeasurement ? `${labelForMeasurement(latestMeasurement.type)} ${measurementValueText(latestMeasurement)}` : "暂无"}</span>
+      <span>最新随访：${latestFollowup ? `${latestFollowup.stage} · ${latestFollowup.status === "completed" ? "结束" : "继续"}` : "暂无"}</span>
+    </div>
+    ${imagePreview ? `<div class="reading-images">${imagePreview}</div>` : `<p class="helper-text">暂无影像。上传影像后这里会自动生成阅读预览。</p>`}
+  `;
 }
 
 function renderClassification() {
@@ -2108,6 +2193,10 @@ function wireEvents() {
         const image = selectedImage();
         if (image) loadEditorImage(image);
         else drawMeasure();
+      } else if (name === "discussion") {
+        markDiscussionRead(state.activeCaseId, false);
+        renderCaseList();
+        renderComments();
       }
     });
   });
@@ -2344,7 +2433,7 @@ function wireEvents() {
   els.imageCanvas.addEventListener("pointerleave", handlePerspectivePointerUp);
 
   els.measureCanvas.addEventListener("click", (event) => {
-    if (!imageEditor.img) return;
+    if (!imageEditor.img || perspectiveMode) return;
     const rect = els.measureCanvas.getBoundingClientRect();
     const scaleX = els.measureCanvas.width / rect.width;
     const scaleY = els.measureCanvas.height / rect.height;
@@ -2364,6 +2453,15 @@ function wireEvents() {
 
   els.measurementButtons.forEach((button) => {
     button.addEventListener("click", () => saveMeasurement(button.dataset.saveMeasurement));
+  });
+  els.measurementList.addEventListener("click", (event) => {
+    const editButton = event.target.closest("[data-edit-measurement]");
+    if (editButton) {
+      editMeasurement(editButton.dataset.editMeasurement);
+      return;
+    }
+    const deleteButton = event.target.closest("[data-delete-measurement]");
+    if (deleteButton) deleteMeasurement(deleteButton.dataset.deleteMeasurement);
   });
   els.defaultFollowupInterval.addEventListener("change", () => updateNestedCase("followupPlan.defaultInterval", els.defaultFollowupInterval.value));
   els.followupStatus.addEventListener("change", () => updateNestedCase("followupPlan.status", els.followupStatus.value));
@@ -2387,6 +2485,17 @@ function wireEvents() {
     if (deleteButton) deleteFollowup(deleteButton.dataset.deleteFollowup);
   });
   els.addComment.addEventListener("click", addComment);
+  els.discussionBoard.addEventListener("click", (event) => {
+    const item = event.target.closest("[data-open-discussion-case]");
+    if (!item) return;
+    state.activeCaseId = item.dataset.openDiscussionCase;
+    state.activeTab = "discussion";
+    imageEditor.imageId = null;
+    measurePoints = [];
+    markDiscussionRead(state.activeCaseId, false);
+    persist();
+    render();
+  });
   els.exportData.addEventListener("click", exportData);
   els.importData.addEventListener("change", importData);
 }
@@ -2506,7 +2615,15 @@ function saveProcessedImage() {
   const current = activeCase();
   const record = selectedImage();
   if (!current || !record || !imageEditor.img) return;
-  commitImageVersion(record, els.imageCanvas.toDataURL("image/png", 0.92), "处理");
+  commitImageVersion(record, processedImageDataUrl(), "处理");
+}
+
+function processedImageDataUrl() {
+  const canvas = document.createElement("canvas");
+  canvas.width = els.imageCanvas.width;
+  canvas.height = els.imageCanvas.height;
+  drawProcessedImage(canvas);
+  return canvas.toDataURL("image/png", 0.92);
 }
 
 function measurementSnapshotDataUrl() {
@@ -2531,8 +2648,7 @@ function saveMeasurement(type) {
   if (isDistance && !valuePx) return;
   if (!isDistance && !angle) return;
   const snapshotDataUrl = measurementSnapshotDataUrl();
-  current.measurements.unshift({
-    id: makeId(),
+  const payload = {
     type,
     view: activeMeasurementView(),
     ...(isDistance ? { valuePx } : { angle }),
@@ -2540,11 +2656,24 @@ function saveMeasurement(type) {
     snapshotDataUrl,
     imageId: image.id,
     imageName: image.name,
-    createdAt: new Date().toISOString()
-  });
+    updatedAt: new Date().toISOString()
+  };
+  const existing = editingMeasurementId
+    ? current.measurements.find((item) => item.id === editingMeasurementId)
+    : null;
+  if (existing) {
+    Object.assign(existing, payload);
+  } else {
+    current.measurements.unshift({
+      id: makeId(),
+      ...payload,
+      createdAt: new Date().toISOString()
+    });
+  }
   current.updatedAt = new Date().toISOString();
   persist();
   measurePoints = [];
+  editingMeasurementId = null;
   renderMeasurements();
   drawMeasure();
 }
@@ -2556,8 +2685,7 @@ function saveCtDepression() {
   const valueMm = Number(rawValue);
   if (!current || !image || !rawValue || !Number.isFinite(valueMm) || valueMm < 0) return;
   const snapshotDataUrl = measurementSnapshotDataUrl();
-  current.measurements.unshift({
-    id: makeId(),
+  const payload = {
     type: "posterior-facet-depression",
     view: "ct",
     valueMm,
@@ -2565,14 +2693,77 @@ function saveCtDepression() {
     snapshotDataUrl,
     imageId: image.id,
     imageName: image.name,
-    createdAt: new Date().toISOString()
-  });
+    updatedAt: new Date().toISOString()
+  };
+  const existing = editingMeasurementId
+    ? current.measurements.find((item) => item.id === editingMeasurementId)
+    : null;
+  if (existing) {
+    Object.assign(existing, payload);
+  } else {
+    current.measurements.unshift({
+      id: makeId(),
+      ...payload,
+      createdAt: new Date().toISOString()
+    });
+  }
   current.updatedAt = new Date().toISOString();
   els.ctDepressionValue.value = "";
   persist();
   measurePoints = [];
+  editingMeasurementId = null;
   renderMeasurements();
   drawMeasure();
+}
+
+function viewForMeasurementRecord(record) {
+  if (record.view) return record.view;
+  if (record.type === "posterior-facet-depression") return "ct";
+  if (measurementDistanceTypes.includes(record.type)) return "distance";
+  if (record.type === "hindfoot-varus") return "axial";
+  return "lateral";
+}
+
+function editMeasurement(id) {
+  const current = activeCase();
+  const record = current?.measurements.find((item) => item.id === id);
+  if (!current || !record) return;
+  editingMeasurementId = id;
+  els.measurementView.value = viewForMeasurementRecord(record);
+  imageEditor.imageId = record.imageId || imageEditor.imageId;
+  imageEditor.img = null;
+  measurePoints = Array.isArray(record.points)
+    ? record.points.map((point) => ({ x: Number(point.x), y: Number(point.y) }))
+    : [];
+  if (record.type === "posterior-facet-depression") {
+    els.ctDepressionValue.value = record.valueMm ?? "";
+  }
+  syncMeasurementUi(current);
+  const image = selectedImage();
+  if (image) loadEditorImage(image);
+  else drawMeasure();
+  renderMeasurements();
+  markSaved("已载入测量记录，可调整点位后重新保存");
+}
+
+function deleteMeasurement(id) {
+  const current = activeCase();
+  if (!current) return;
+  const index = current.measurements.findIndex((item) => item.id === id);
+  if (index < 0) return;
+  const record = current.measurements[index];
+  const confirmed = window.confirm(`确定删除「${labelForMeasurement(record.type)}」这条测量记录吗？`);
+  if (!confirmed) return;
+  current.measurements.splice(index, 1);
+  if (editingMeasurementId === id) {
+    editingMeasurementId = null;
+    measurePoints = [];
+  }
+  current.updatedAt = new Date().toISOString();
+  persist();
+  renderMeasurements();
+  drawMeasure();
+  markSaved("已删除测量记录");
 }
 
 function addFollowup() {
@@ -2656,6 +2847,8 @@ function addComment() {
     body,
     createdAt: new Date().toISOString()
   });
+  state.discussionReads ||= {};
+  state.discussionReads[current.id] = new Date().toISOString();
   els.commentBody.value = "";
   current.updatedAt = new Date().toISOString();
   persist();

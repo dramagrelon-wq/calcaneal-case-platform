@@ -801,6 +801,7 @@ textarea:focus {
 }
 
 .case-open {
+  position: relative;
   display: grid;
   gap: 8px;
   width: 100%;
@@ -811,6 +812,26 @@ textarea:focus {
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.discussion-badge,
+.forum-case-card b {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #c94f40;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.discussion-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 
 .case-open:focus-visible {
@@ -1086,6 +1107,11 @@ textarea:focus {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(240px, 330px);
   gap: 16px;
+}
+
+.image-workspace {
+  grid-template-columns: minmax(150px, 190px) minmax(0, 1fr) minmax(260px, 340px);
+  align-items: start;
 }
 
 .privacy-checklist,
@@ -1387,6 +1413,39 @@ textarea:focus {
   grid-template-columns: 1fr;
 }
 
+.workstation-tools {
+  gap: 10px;
+}
+
+.tool-group {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.tool-group summary {
+  min-height: 42px;
+  padding: 11px 12px;
+  cursor: pointer;
+  background: #f7faf9;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.tool-group > *:not(summary) {
+  margin: 0 12px 12px;
+}
+
+.tool-group > .tool-row,
+.tool-group > .measurement-actions,
+.tool-group > .bulk-image-tools {
+  margin-bottom: 12px;
+}
+
 .score-field {
   display: grid;
   gap: 8px;
@@ -1464,6 +1523,47 @@ textarea:focus {
   margin-top: 10px;
 }
 
+.image-filmstrip {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #1d2a28;
+  border-radius: 8px;
+  background: #101817;
+  color: #e7f0ed;
+}
+
+.image-filmstrip label,
+.image-filmstrip .helper-text {
+  color: #cfe1dd;
+}
+
+.filmstrip-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.filmstrip-heading span {
+  color: #a8bab5;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.image-main-stage {
+  display: grid;
+  gap: 10px;
+}
+
+.c-arm-viewer {
+  min-height: clamp(360px, 54vw, 680px);
+  border-color: #263635;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    #0b1110;
+  background-size: 24px 24px;
+}
+
 .upload-status {
   margin-top: 8px;
   color: var(--muted);
@@ -1479,13 +1579,18 @@ textarea:focus {
   margin-top: 10px;
 }
 
+.stacked-tools {
+  grid-template-columns: 1fr;
+  margin-top: 0;
+}
+
 .bulk-image-tools .toggle-row {
   min-height: 42px;
 }
 
 .image-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(130px, 170px) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
   align-items: center;
 }
@@ -1496,26 +1601,62 @@ textarea:focus {
 }
 
 .image-pick {
-  min-height: 38px;
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 64px;
   min-width: 0;
-  padding: 0 10px;
-  border: 1px solid var(--line);
+  padding: 6px;
+  border: 1px solid rgba(207, 225, 221, 0.22);
   border-radius: 8px;
-  background: #fff;
-  color: var(--ink);
+  background: #172321;
+  color: #e7f0ed;
   overflow: hidden;
   text-align: left;
+}
+
+.image-pick img {
+  width: 54px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #050807;
+}
+
+.image-pick span,
+.image-pick em {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.image-pick span {
+  font-weight: 900;
+}
+
+.image-pick em {
+  grid-column: 2;
+  color: #a8bab5;
+  font-size: 12px;
+  font-style: normal;
+}
+
 .image-pick.active {
   border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-strong);
+  background: #213d39;
+  color: #fff;
+}
+
+.image-row select {
+  grid-column: 1 / -1;
+  min-height: 34px;
+  background: #fff;
 }
 
 .image-delete {
+  grid-column: 1 / -1;
   min-height: 38px;
   padding: 0 10px;
   border: 1px solid #e6bbb4;
@@ -1607,6 +1748,11 @@ input[type="range"] {
   background: #fff;
 }
 
+.measurement-record.editing {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .record-card strong,
 .comment-card strong {
   display: block;
@@ -1672,6 +1818,108 @@ input[type="range"] {
   line-height: 1.55;
 }
 
+.discussion-forum {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.discussion-board,
+.case-reading-view {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.discussion-board-list {
+  display: grid;
+  gap: 8px;
+}
+
+.forum-case-card {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.forum-case-card.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.forum-case-card span,
+.forum-case-card em {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.forum-case-card b {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.reading-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reading-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.reading-grid span {
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.reading-images {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.reading-images figure {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.reading-images img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #111817;
+}
+
+.reading-images figcaption {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .discussion-composer .wide {
   grid-column: 1 / -1;
 }
@@ -1719,7 +1967,10 @@ input[type="range"] {
   .note-layout,
   .image-workspace,
   .measurement-grid,
-  .discussion-composer {
+  .discussion-composer,
+  .discussion-forum,
+  .reading-grid,
+  .reading-images {
     grid-template-columns: 1fr;
   }
 }

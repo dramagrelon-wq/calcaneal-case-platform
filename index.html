@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=20">
+    <link rel="stylesheet" href="styles.css?v=21">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -605,59 +605,30 @@
             </div>
 
             <div class="image-workspace">
-              <div class="canvas-card">
-                <canvas id="imageCanvas" width="960" height="640" aria-label="影像处理画布"></canvas>
-              </div>
-              <div class="tool-panel">
+              <aside class="image-filmstrip" aria-label="影像缩略图">
+                <div class="filmstrip-heading">
+                  <strong>影像序列</strong>
+                  <span id="imageUploadStatus" aria-live="polite">未选择影像</span>
+                </div>
                 <label>
                   当前影像
                   <select id="imageSelect"></select>
                 </label>
-                <div class="tool-row">
-                  <button id="autoCrop" class="tool-button">自动裁剪</button>
-                  <button id="squareCrop" class="tool-button">居中方裁</button>
-                  <button id="rotateImage" class="tool-button">旋转</button>
-                  <button id="saveImage" class="tool-button">保存处理</button>
+                <div id="imageList" class="image-list"></div>
+              </aside>
+
+              <div class="image-main-stage">
+                <div class="canvas-card c-arm-viewer">
+                  <canvas id="imageCanvas" width="960" height="640" aria-label="影像处理画布"></canvas>
                 </div>
-                <div class="tool-row">
-                  <button id="perspectiveMode" class="tool-button">四点矫正</button>
-                  <button id="applyPerspective" class="tool-button">应用矫正</button>
-                  <button id="resetPerspective" class="tool-button">重置角点</button>
-                </div>
-                <p class="helper-text">四点矫正：先点击“四点矫正”，拖动四个角点贴住拍摄屏幕、片子或纸张的四个边角，再点“应用矫正”，把斜拍的梯形拉回标准长方形或正方形。角点会限制在当前图片实际显示边界内。</p>
-                <div class="tool-row">
-                  <button id="undoImage" class="tool-button">后退一步</button>
-                  <button id="redoImage" class="tool-button">前进一步</button>
-                  <button id="resetOriginalImage" class="tool-button">恢复原始</button>
-                </div>
-                <label>
-                  图片显示
-                  <select id="imageDisplayMode">
-                    <option value="fit">自动适配</option>
-                    <option value="stretch">自动拉伸大小</option>
-                    <option value="cover">全屏</option>
-                  </select>
-                </label>
-                <label class="toggle-row">
-                  <input id="blackWhiteMode" type="checkbox">
-                  黑白滤镜
-                </label>
-                <label>
-                  亮度
-                  <input id="brightness" type="range" min="-50" max="50" value="0">
-                </label>
-                <label>
-                  对比度
-                  <input id="contrast" type="range" min="-50" max="80" value="20">
-                </label>
-                <label>
-                  锐化
-                  <input id="sharpen" type="range" min="0" max="3" value="1">
-                </label>
-                <div>
-                  <h3>影像分类</h3>
-                  <p class="helper-text">支持批量上传后勾选一张或多张影像，统一归类；正位、侧位、轴位资料允许缺失，不影响病例继续记录。</p>
-                  <div class="bulk-image-tools">
+                <p class="helper-text">上传的普通图片会经 Canvas 重新编码，便于去除常见 EXIF metadata。DICOM 支持将在后续加入。</p>
+              </div>
+
+              <aside class="tool-panel workstation-tools" aria-label="影像操作">
+                <details class="tool-group" open>
+                  <summary>归类</summary>
+                  <p class="helper-text">可在左侧勾选一张或多张缩略图，再统一归类；正位、侧位、轴位资料允许缺失。</p>
+                  <div class="bulk-image-tools stacked-tools">
                     <label class="toggle-row">
                       <input id="selectAllImages" type="checkbox">
                       全选当前影像
@@ -677,27 +648,60 @@
                     </label>
                     <button class="tool-button" id="applyBulkImageCategory" type="button">应用到勾选影像</button>
                   </div>
-                  <p class="upload-status" id="imageUploadStatus" aria-live="polite">未选择影像</p>
-                  <div id="imageList" class="image-list"></div>
-                </div>
-                <p class="helper-text">上传的普通图片会经 Canvas 重新编码，便于去除常见 EXIF metadata。DICOM 支持将在后续加入。</p>
-              </div>
-            </div>
+                </details>
 
-            <section class="embedded-measure-panel" id="measurePanel">
-            <div class="section-heading compact-heading">
-              <div>
-                <p class="eyebrow">Semi-automatic Measurement</p>
-                <h2>当前影像测量</h2>
-              </div>
-            </div>
+                <details class="tool-group" open>
+                  <summary>矫正</summary>
+                  <div class="tool-row">
+                    <button id="autoCrop" class="tool-button">自动裁剪</button>
+                    <button id="squareCrop" class="tool-button">居中方裁</button>
+                    <button id="rotateImage" class="tool-button">旋转</button>
+                    <button id="saveImage" class="tool-button">保存处理</button>
+                  </div>
+                  <div class="tool-row">
+                    <button id="perspectiveMode" class="tool-button">四点矫正</button>
+                    <button id="applyPerspective" class="tool-button">应用矫正</button>
+                    <button id="resetPerspective" class="tool-button">重置角点</button>
+                  </div>
+                  <p class="helper-text">四点矫正：拖动四个角点贴住拍摄屏幕、片子或纸张的四个边角，再应用矫正；角点会限制在当前图片实际显示边界内。</p>
+                  <div class="tool-row">
+                    <button id="undoImage" class="tool-button">后退一步</button>
+                    <button id="redoImage" class="tool-button">前进一步</button>
+                    <button id="resetOriginalImage" class="tool-button">恢复原始</button>
+                  </div>
+                </details>
 
-            <div class="measurement-grid">
-              <div class="canvas-card measurement-canvas-card">
-                <canvas id="measureCanvas" width="960" height="720" aria-label="角度测量画布"></canvas>
-              </div>
-              <div class="tool-panel">
-                <div class="measurement-context">
+                <details class="tool-group">
+                  <summary>滤镜调整</summary>
+                  <label>
+                    图片显示
+                    <select id="imageDisplayMode">
+                      <option value="fit">自动适配</option>
+                      <option value="stretch">自动拉伸大小</option>
+                      <option value="cover">全屏</option>
+                    </select>
+                  </label>
+                  <label class="toggle-row">
+                    <input id="blackWhiteMode" type="checkbox">
+                    黑白滤镜
+                  </label>
+                  <label>
+                    亮度
+                    <input id="brightness" type="range" min="-50" max="50" value="0">
+                  </label>
+                  <label>
+                    对比度
+                    <input id="contrast" type="range" min="-50" max="80" value="20">
+                  </label>
+                  <label>
+                    锐化
+                    <input id="sharpen" type="range" min="0" max="3" value="1">
+                  </label>
+                </details>
+
+                <details class="tool-group" id="measurePanel" open>
+                  <summary>测量</summary>
+                  <div class="measurement-context">
                   <label>
                     测量场景
                     <select id="measurementView">
@@ -734,9 +738,9 @@
                 <button id="resetPoints" class="tool-button">重置点位</button>
                 <p class="helper-text" id="measurementHelp">跟骨侧位用于 Böhler 角和 Gissane 角：依次点击 4 个点，两点一条线，系统计算两线夹角。</p>
                 <div id="measurementList" class="record-list"></div>
-              </div>
+                </details>
+              </aside>
             </div>
-            </section>
           </section>
 
           <section class="tab-panel" id="followupPanel">
@@ -822,19 +826,29 @@
           <section class="tab-panel" id="discussionPanel">
             <div class="section-heading">
               <div>
-                <p class="eyebrow">Discussion</p>
-                <h2>病例讨论</h2>
+                <p class="eyebrow">Case Forum</p>
+                <h2>病例讨论区</h2>
               </div>
               <button class="primary-button" id="addComment">发表</button>
             </div>
 
-            <div class="discussion-composer">
-              <label class="wide">
-                讨论内容
-                <textarea id="commentBody" rows="5" placeholder="术前计划、复位策略、影像判断、术后复盘"></textarea>
-              </label>
+            <div class="discussion-forum">
+              <aside class="discussion-board">
+                <h3>需要大家一起看的病例</h3>
+                <p class="helper-text">公开、圈内教学或管理员可见病例会自动生成阅读卡片，方便大家像论坛一样进入讨论。</p>
+                <div id="discussionBoard" class="discussion-board-list"></div>
+              </aside>
+              <article class="case-reading-view">
+                <div id="caseReadingView"></div>
+                <div class="discussion-composer">
+                  <label class="wide">
+                    讨论内容
+                    <textarea id="commentBody" rows="5" placeholder="术前计划、复位策略、影像判断、术后复盘"></textarea>
+                  </label>
+                </div>
+                <div id="commentList" class="comment-list"></div>
+              </article>
             </div>
-            <div id="commentList" class="comment-list"></div>
           </section>
         </section>
       </main>
