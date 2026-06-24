@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=17">
+    <link rel="stylesheet" href="styles.css?v=18">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -638,7 +638,27 @@
                 </label>
                 <div>
                   <h3>影像分类</h3>
-                  <p class="helper-text">支持术前 X 线/CT、术中图片、术后 X 线/CT和其他影像资料。</p>
+                  <p class="helper-text">支持批量上传后勾选一张或多张影像，统一归类；正位、侧位、轴位资料允许缺失，不影响病例继续记录。</p>
+                  <div class="bulk-image-tools">
+                    <label class="toggle-row">
+                      <input id="selectAllImages" type="checkbox">
+                      全选当前影像
+                    </label>
+                    <label>
+                      批量归类为
+                      <select id="bulkImageCategory">
+                        <option value="preop-xray">术前 X 线</option>
+                        <option value="intraop-xray">术中 X 线</option>
+                        <option value="intraop-fluoro">术中透视</option>
+                        <option value="postop-xray">术后 X 线</option>
+                        <option value="preop-ct">术前 CT</option>
+                        <option value="postop-ct">术后 CT</option>
+                        <option value="intraop-other">术中其他图片</option>
+                        <option value="other">其他图片</option>
+                      </select>
+                    </label>
+                    <button class="tool-button" id="applyBulkImageCategory" type="button">应用到勾选影像</button>
+                  </div>
                   <p class="upload-status" id="imageUploadStatus" aria-live="polite">未选择影像</p>
                   <div id="imageList" class="image-list"></div>
                 </div>

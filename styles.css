@@ -1260,11 +1260,28 @@ textarea:focus {
   font-weight: 800;
 }
 
+.bulk-image-tools {
+  display: grid;
+  grid-template-columns: minmax(130px, auto) minmax(160px, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 10px;
+}
+
+.bulk-image-tools .toggle-row {
+  min-height: 42px;
+}
+
 .image-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(130px, 170px) auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(130px, 170px) auto;
   gap: 8px;
   align-items: center;
+}
+
+.image-check {
+  width: 18px;
+  min-height: 18px;
 }
 
 .image-pick {
@@ -1571,6 +1588,7 @@ input[type="range"] {
 
   .section-actions,
   .fragment-checks,
+  .bulk-image-tools,
   .measurement-actions,
   .image-row {
     width: 100%;

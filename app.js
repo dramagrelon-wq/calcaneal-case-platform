@@ -183,6 +183,9 @@ const els = {
   imageSelect: $("#imageSelect"),
   imageList: $("#imageList"),
   imageCanvas: $("#imageCanvas"),
+  selectAllImages: $("#selectAllImages"),
+  bulkImageCategory: $("#bulkImageCategory"),
+  applyBulkImageCategory: $("#applyBulkImageCategory"),
   autoCrop: $("#autoCrop"),
   squareCrop: $("#squareCrop"),
   perspectiveMode: $("#perspectiveMode"),
@@ -750,16 +753,18 @@ function renderImages() {
   els.imageList.innerHTML = current.images.length
     ? current.images.map((image) => `
         <article class="image-row" data-image-id="${image.id}">
+          <input class="image-check" type="checkbox" data-image-check="${image.id}" aria-label="选择 ${escapeHtml(image.name)}">
           <button class="image-pick ${image.id === (imageEditor.imageId || current.images[0]?.id) ? "active" : ""}" data-pick-image="${image.id}">
             ${escapeHtml(image.name)}
           </button>
           <select data-image-category="${image.id}" aria-label="影像分类">
             ${imageCategoryOptions(image.category)}
           </select>
-          <button class="image-delete" type="button" data-delete-image="${image.id}" aria-label="删除 ${escapeHtml(image.name)}">删除</button>
+          <button class="image-delete" type="button" data-delete-image="${image.id}" aria-label="删除 ${escapeHtml(image.name)}">删除图像</button>
         </article>
       `).join("")
     : `<p class="helper-text">暂无影像。可批量上传后逐张设置分类。</p>`;
+  if (els.selectAllImages) els.selectAllImages.checked = false;
 
   const selected = current.images.find((image) => image.id === imageEditor.imageId) || current.images[0];
   if (selected) {
@@ -797,19 +802,40 @@ function deleteImage(imageId) {
   markSaved("已删除影像");
 }
 
+function checkedImageIds() {
+  return $$("[data-image-check]:checked").map((input) => input.dataset.imageCheck);
+}
+
+function applyBulkImageCategory() {
+  const current = activeCase();
+  const ids = checkedImageIds();
+  if (!current || !ids.length) {
+    setUploadStatus("请先勾选要归类的影像");
+    return;
+  }
+  const category = els.bulkImageCategory.value;
+  current.images.forEach((image) => {
+    if (ids.includes(image.id)) image.category = category;
+  });
+  current.updatedAt = new Date().toISOString();
+  persist();
+  renderImages();
+  renderMeasurements();
+  setUploadStatus(`已将 ${ids.length} 张影像归类为：${imageCategoryLabel(category)}`);
+}
+
 function imageCategoryOptions(selected = "other") {
+  const normalized = normalizeImageCategory(selected);
   return [
-    ["preop-lateral-xray", "术前侧位 X 线"],
-    ["preop-axial-xray", "术前轴位 X 线"],
     ["preop-xray", "术前 X 线"],
-    ["preop-ct", "术前 CT"],
-    ["intraop", "术中图片"],
-    ["postop-lateral-xray", "术后侧位 X 线"],
-    ["postop-axial-xray", "术后轴位 X 线"],
+    ["intraop-xray", "术中 X 线"],
+    ["intraop-fluoro", "术中透视"],
     ["postop-xray", "术后 X 线"],
+    ["preop-ct", "术前 CT"],
     ["postop-ct", "术后 CT"],
-    ["other", "其他影像资料"]
-  ].map(([value, label]) => `<option value="${value}" ${value === selected ? "selected" : ""}>${label}</option>`).join("");
+    ["intraop-other", "术中其他图片"],
+    ["other", "其他图片"]
+  ].map(([value, label]) => `<option value="${value}" ${value === normalized ? "selected" : ""}>${label}</option>`).join("");
 }
 
 function imageCategoryLabel(value = "other") {
@@ -817,28 +843,37 @@ function imageCategoryLabel(value = "other") {
     "preop-lateral-xray": "术前侧位 X 线",
     "preop-axial-xray": "术前轴位 X 线",
     "preop-xray": "术前 X 线",
+    "intraop-xray": "术中 X 线",
+    "intraop-fluoro": "术中透视",
     "preop-ct": "术前 CT",
-    intraop: "术中图片",
+    intraop: "术中其他图片",
+    "intraop-other": "术中其他图片",
     "postop-lateral-xray": "术后侧位 X 线",
     "postop-axial-xray": "术后轴位 X 线",
     "postop-xray": "术后 X 线",
     "postop-ct": "术后 CT",
-    other: "其他影像资料"
-  }[value] || "其他影像资料";
+    other: "其他图片"
+  }[value] || "其他图片";
+}
+
+function normalizeImageCategory(value = "other") {
+  return {
+    "preop-lateral-xray": "preop-xray",
+    "preop-axial-xray": "preop-xray",
+    "postop-lateral-xray": "postop-xray",
+    "postop-axial-xray": "postop-xray",
+    intraop: "intraop-other"
+  }[value] || value || "other";
 }
 
 function inferImageCategory(fileName = "") {
   const name = fileName.toLowerCase();
-  if (/术中|intra|op/.test(name)) return "intraop";
-  if (/术后|post/.test(name) && /轴位|axial|harris/.test(name)) return "postop-axial-xray";
-  if (/术后|post/.test(name) && /侧位|lateral|lat/.test(name)) return "postop-lateral-xray";
+  if (/术中|intra|op/.test(name) && /透视|fluoro|c-arm|carm/.test(name)) return "intraop-fluoro";
+  if (/术中|intra|op/.test(name) && /xray|x-ray|dr|片|正位|侧位|轴位|axial|lateral|lat|harris/.test(name)) return "intraop-xray";
+  if (/术中|intra|op/.test(name)) return "intraop-other";
   if (/术后|post/.test(name) && /ct/.test(name)) return "postop-ct";
   if (/术后|post/.test(name)) return "postop-xray";
-  if (/术前|pre/.test(name) && /轴位|axial|harris/.test(name)) return "preop-axial-xray";
-  if (/术前|pre/.test(name) && /侧位|lateral|lat/.test(name)) return "preop-lateral-xray";
   if (/术前|pre/.test(name) && /ct/.test(name)) return "preop-ct";
-  if (/轴位|axial|harris/.test(name)) return "preop-axial-xray";
-  if (/侧位|lateral|lat/.test(name)) return "preop-lateral-xray";
   if (/术前|pre|xray|x-ray|dr|片/.test(name)) return "preop-xray";
   if (/ct/.test(name)) return "preop-ct";
   return "other";
@@ -850,8 +885,8 @@ function activeMeasurementView() {
 
 function measurementCategoriesForView(view = activeMeasurementView()) {
   return {
-    lateral: ["preop-lateral-xray", "postop-lateral-xray", "preop-xray", "postop-xray"],
-    axial: ["preop-axial-xray", "postop-axial-xray", "preop-xray", "postop-xray"],
+    lateral: ["preop-xray", "intraop-xray", "intraop-fluoro", "postop-xray", "preop-lateral-xray", "postop-lateral-xray"],
+    axial: ["preop-xray", "intraop-xray", "intraop-fluoro", "postop-xray", "preop-ct", "postop-ct", "preop-axial-xray", "postop-axial-xray"],
     ct: ["preop-ct", "postop-ct"]
   }[view] || [];
 }
@@ -859,7 +894,7 @@ function measurementCategoriesForView(view = activeMeasurementView()) {
 function measurementHelpText(view = activeMeasurementView()) {
   return {
     lateral: "跟骨侧位用于 Böhler 角和 Gissane 角：依次点击 4 个点，两点一条线，系统计算两线夹角。",
-    axial: "跟骨轴位用于内外翻测量：在轴位片上依次点击 4 个点，形成两条参考线后记录夹角。",
+    axial: "跟骨轴位或 CT 可用于内外翻/轴线测量：资料缺失时允许选择可用的 X 线、透视或 CT 图像，依次点击 4 个点形成两条参考线。",
     ct: "CT 层面用于记录关节面塌陷程度：可点击 2 个点画辅助线，但最终请按 CT 标尺或工作站读数填写毫米值。"
   }[view] || "";
 }
@@ -1871,12 +1906,20 @@ function wireEvents() {
     const current = activeCase();
     const image = current?.images.find((item) => item.id === select.dataset.imageCategory);
     if (!current || !image) return;
-    image.category = select.value;
+    image.category = normalizeImageCategory(select.value);
     current.updatedAt = new Date().toISOString();
     persist();
     renderImages();
     renderMeasurements();
   });
+
+  els.selectAllImages.addEventListener("change", () => {
+    $$("[data-image-check]").forEach((input) => {
+      input.checked = els.selectAllImages.checked;
+    });
+  });
+
+  els.applyBulkImageCategory.addEventListener("click", applyBulkImageCategory);
   [els.brightness, els.contrast, els.sharpen, els.blackWhiteMode, els.imageDisplayMode].forEach((input) => {
     input.addEventListener("input", updateSelectedImageAdjustments);
     input.addEventListener("change", updateSelectedImageAdjustments);
