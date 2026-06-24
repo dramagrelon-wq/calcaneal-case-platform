@@ -5,7 +5,8 @@ const ACCESS_STORAGE_KEY = "calcaneal-case:doctor-access:v1";
 const defaultState = {
   activeCaseId: null,
   activeTab: "overview",
-  cases: []
+  cases: [],
+  trash: []
 };
 
 let state = loadState();
@@ -20,6 +21,7 @@ let imageEditor = {
 };
 let measurePoints = [];
 let editingFollowupId = null;
+let activeScoreDraft = null;
 let perspectiveMode = false;
 let perspectivePoints = [];
 let draggedPerspectivePoint = null;
@@ -38,13 +40,13 @@ const introSteps = [
 const tutorialGuides = {
   overview: ["Case Intake Guide", "如何录入一个跟骨骨折病例", "先完成病例编号、受伤机制、合并损伤和隐私检查。病例可见范围在左侧病例卡片中选择，字段变更会自动保存，也可以点“保存”手动确认。"],
   classify: ["Classification Guide", "如何完成分型记录", "Essex-Lopresti、Sanders 和 Zwipp 作为同等重要的记录入口填写，最后再补充骨折脱位型和特殊情况。"],
-  images: ["Image Workspace Guide", "如何上传和处理影像", "批量上传后先分类，再按单张影像做裁剪、黑白滤镜、亮度、对比度、锐化和四点矫正。操作失误可后退、前进或恢复原始图。"],
-  measure: ["Measurement Guide", "如何做影像测量", "先选择跟骨侧位、跟骨轴位或 CT 层面。侧位记录 Böhler/Gissane，轴位记录内外翻，CT 记录关节面塌陷程度。"],
+  images: ["Image Workspace Guide", "如何上传、处理和测量影像", "批量上传后先分类，再选择单张影像做裁剪、增强、四点矫正和测量。测量会另外保存一张带标记线的截图，原始分类影像仍保留在影像列表中。"],
+  measure: ["Measurement Guide", "如何做影像测量", "测量已经合并到影像页。先选当前影像和测量场景，再记录 Böhler/Gissane、轴位内外翻、台阶、间隙或 CT 关节面塌陷。"],
   followup: ["Follow-up Guide", "如何安排随访", "先设默认随访间隔，再记录提醒日期、VAS、功能评分、负重状态和终极指标。随访结束后仍可保留关键结局。"],
   discussion: ["Discussion Guide", "如何组织病例讨论", "讨论区用于记录术前计划、复位策略、影像判断和术后复盘。公开前仍需确认病例已经充分去标识化。"]
 };
 
-const injuryKeys = ["spine", "lowerLimb", "pelvis", "foot", "softTissue", "other"];
+const injuryKeys = ["softTissue", "spine", "lowerLimb", "pelvis", "foot", "other"];
 const injuryLabels = {
   spine: "脊柱",
   lowerLimb: "下肢",
@@ -63,6 +65,36 @@ const softTissueLabels = {
   compartment: "骨筋膜室综合征"
 };
 
+const measurementDistanceTypes = ["step-off", "gap"];
+
+const scoreConfigs = {
+  aofas: {
+    label: "AOFAS 足踝-后足评分",
+    items: [
+      { key: "pain", label: "疼痛", max: 40, step: 5 },
+      { key: "function", label: "功能", max: 50, step: 5 },
+      { key: "alignment", label: "力线", max: 10, step: 5 }
+    ]
+  },
+  maryland: {
+    label: "Maryland 足部评分",
+    items: [
+      { key: "pain", label: "疼痛", max: 45, step: 5 },
+      { key: "function", label: "功能", max: 50, step: 5 },
+      { key: "cosmesis", label: "外观", max: 5, step: 5 }
+    ]
+  },
+  sf36: {
+    label: "SF-36 生活质量评分",
+    items: [
+      { key: "physicalFunction", label: "躯体功能", max: 100, step: 10 },
+      { key: "pain", label: "疼痛影响", max: 100, step: 10 },
+      { key: "generalHealth", label: "总体健康", max: 100, step: 10 }
+    ],
+    average: true
+  }
+};
+
 const defaultImageAdjustments = {
   brightness: 0,
   contrast: 20,
@@ -76,6 +108,25 @@ const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
 function cloneDefaultState() {
   return JSON.parse(JSON.stringify(defaultState));
+}
+
+function normalizeActiveTab(value = "overview") {
+  if (value === "measure") return "images";
+  return ["overview", "classify", "images", "followup", "discussion"].includes(value) ? value : "overview";
+}
+
+function normalizeState(value) {
+  const next = {
+    ...cloneDefaultState(),
+    ...(value || {})
+  };
+  next.cases = Array.isArray(next.cases) ? next.cases : [];
+  next.trash = Array.isArray(next.trash) ? next.trash : [];
+  next.activeTab = normalizeActiveTab(next.activeTab);
+  next.activeCaseId = next.cases.some((item) => item.id === next.activeCaseId)
+    ? next.activeCaseId
+    : next.cases[0]?.id || null;
+  return next;
 }
 
 function makeId() {
@@ -113,6 +164,8 @@ const els = {
   accessStatus: $("#accessStatus"),
   caseCount: $("#caseCount"),
   caseList: $("#caseList"),
+  trashCount: $("#trashCount"),
+  trashList: $("#trashList"),
   caseSearch: $("#caseSearch"),
   newCase: $("#newCase"),
   seedDemo: $("#seedDemo"),
@@ -127,7 +180,6 @@ const els = {
   panels: {
     overview: $("#overviewPanel"),
     images: $("#imagesPanel"),
-    measure: $("#measurePanel"),
     classify: $("#classifyPanel"),
     followup: $("#followupPanel"),
     discussion: $("#discussionPanel")
@@ -174,6 +226,7 @@ const els = {
     hideMetadata: $("#hideMetadata"),
     adminApplicationReason: $("#adminApplicationReason"),
     adminTeachingProfile: $("#adminTeachingProfile"),
+    isMulticenterCase: $("#isMulticenterCase"),
     ethicsApprovalId: $("#ethicsApprovalId"),
     sanders: $("#sanders"),
     essex: $("#essex"),
@@ -192,6 +245,8 @@ const els = {
   visibilityCards: $$("[data-visibility-card]"),
   adminPanel: $("#adminPanel"),
   researchPanel: $("#researchPanel"),
+  applyResearchAccess: $("#applyResearchAccess"),
+  researchAccessStatus: $("#researchAccessStatus"),
   ethicsApprovalFile: $("#ethicsApprovalFile"),
   ethicsApprovalFileName: $("#ethicsApprovalFileName"),
   credentialFile: $("#credentialFile"),
@@ -244,6 +299,14 @@ const els = {
   followupNotes: $("#followupNotes"),
   addFollowup: $("#addFollowup"),
   followupList: $("#followupList"),
+  openScoreDialog: $("#openScoreDialog"),
+  scoreDialog: $("#scoreDialog"),
+  closeScoreDialog: $("#closeScoreDialog"),
+  scoreScale: $("#scoreScale"),
+  scoreItems: $("#scoreItems"),
+  scoreTotal: $("#scoreTotal"),
+  clearScoreDraft: $("#clearScoreDraft"),
+  applyScoreDraft: $("#applyScoreDraft"),
   commentBody: $("#commentBody"),
   addComment: $("#addComment"),
   commentList: $("#commentList")
@@ -252,7 +315,7 @@ const els = {
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : cloneDefaultState();
+    return normalizeState(raw ? JSON.parse(raw) : cloneDefaultState());
   } catch {
     return cloneDefaultState();
   }
@@ -261,9 +324,13 @@ function loadState() {
 function loadPrivateState() {
   try {
     const raw = localStorage.getItem(PRIVATE_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : { cases: {} };
+    const parsed = raw ? JSON.parse(raw) : { cases: {}, trash: {} };
+    return {
+      cases: parsed.cases || {},
+      trash: parsed.trash || {}
+    };
   } catch {
-    return { cases: {} };
+    return { cases: {}, trash: {} };
   }
 }
 
@@ -371,7 +438,8 @@ function renderTutorial(tabName = state.activeTab || "overview") {
 }
 
 function syncActiveTab() {
-  const tabName = state.activeTab || "overview";
+  const tabName = normalizeActiveTab(state.activeTab || "overview");
+  state.activeTab = tabName;
   els.tabs.forEach((item) => item.classList.toggle("active", item.dataset.tab === tabName));
   Object.entries(els.panels).forEach(([key, panel]) => panel.classList.toggle("active", key === tabName));
 }
@@ -419,6 +487,18 @@ function normalizeCombinedInjuries(value, legacyText = "") {
     base.other = { checked: true, detail: legacyText };
   }
   return base;
+}
+
+function normalizeResearch(value = {}) {
+  return {
+    isMulticenterCase: false,
+    accessApproved: false,
+    accessApplicationStatus: "",
+    ethicsApprovalId: "",
+    ethicsApprovalFileName: "",
+    credentialFileName: "",
+    ...(value || {})
+  };
 }
 
 function combinedInjurySummary(item) {
@@ -533,12 +613,7 @@ function createCase(seed = {}) {
       hideMetadata: false,
       ...(seed.privacyChecks || {})
     },
-    research: {
-      ethicsApprovalId: "",
-      ethicsApprovalFileName: "",
-      credentialFileName: "",
-      ...(seed.research || {})
-    },
+    research: normalizeResearch(seed.research),
     adminApplication: {
       reason: "",
       teachingProfile: "",
@@ -591,10 +666,21 @@ function deleteCase(caseId) {
   const index = state.cases.findIndex((item) => item.id === caseId);
   if (index < 0) return;
   const item = state.cases[index];
-  const confirmed = window.confirm(`确定删除病例 ${item.code} 吗？该操作会同时删除本机保存的私密随访信息。`);
+  const confirmed = window.confirm(`确定将病例 ${item.code} 移入垃圾箱吗？病例会保留 30 天，期间可以恢复。`);
   if (!confirmed) return;
-  state.cases.splice(index, 1);
   privateState.cases ||= {};
+  privateState.trash ||= {};
+  const privateData = privateState.cases[caseId] ? { ...privateState.cases[caseId] } : null;
+  const deletedAt = new Date();
+  const expiresAt = new Date(deletedAt.getTime() + 30 * 86400000);
+  state.trash ||= [];
+  state.trash.unshift({
+    ...JSON.parse(JSON.stringify(item)),
+    deletedAt: deletedAt.toISOString(),
+    expiresAt: expiresAt.toISOString()
+  });
+  if (privateData) privateState.trash[caseId] = privateData;
+  state.cases.splice(index, 1);
   delete privateState.cases[caseId];
   if (state.activeCaseId === caseId) {
     const next = state.cases[Math.min(index, state.cases.length - 1)];
@@ -605,7 +691,47 @@ function deleteCase(caseId) {
   persist();
   persistPrivate();
   render();
-  markSaved("已删除病例并保存");
+  markSaved("已移入垃圾箱");
+}
+
+function restoreCase(caseId) {
+  state.trash ||= [];
+  const index = state.trash.findIndex((item) => item.id === caseId);
+  if (index < 0) return;
+  const restored = { ...state.trash[index] };
+  privateState.trash ||= {};
+  const privateData = privateState.trash[caseId] ? { ...privateState.trash[caseId] } : null;
+  delete restored.deletedAt;
+  delete restored.expiresAt;
+  restored.updatedAt = new Date().toISOString();
+  state.trash.splice(index, 1);
+  state.cases.unshift(restored);
+  state.activeCaseId = restored.id;
+  if (privateData) {
+    privateState.cases ||= {};
+    privateState.cases[restored.id] = privateData;
+  }
+  delete privateState.trash[restored.id];
+  persist();
+  persistPrivate();
+  render();
+  markSaved("已恢复病例");
+}
+
+function purgeCase(caseId) {
+  state.trash ||= [];
+  const index = state.trash.findIndex((item) => item.id === caseId);
+  if (index < 0) return;
+  const item = state.trash[index];
+  const confirmed = window.confirm(`确定彻底删除病例 ${item.code || ""} 吗？彻底删除后不能从垃圾箱恢复。`);
+  if (!confirmed) return;
+  state.trash.splice(index, 1);
+  privateState.trash ||= {};
+  delete privateState.trash[caseId];
+  persist();
+  persistPrivate();
+  renderTrash();
+  markSaved("已彻底删除病例");
 }
 
 function updateNestedCase(path, value) {
@@ -645,14 +771,33 @@ function privacyOptions(selected = "private") {
 function syncVisibilityUi(value) {
   const normalized = normalizePrivacyLevel(value);
   els.privacyPill.textContent = privacyLabel(normalized);
-  els.adminPanel.classList.toggle("active", normalized === "admin");
   els.visibilityCards.forEach((card) => {
     card.classList.toggle("active", card.dataset.visibilityCard === normalized);
   });
 }
 
+function researchStatusText(research = {}) {
+  if (research.accessApproved) return "已准入";
+  if (research.accessApplicationStatus === "pending") return "已提交申请";
+  return "未加入";
+}
+
+function syncResearchUi(current = activeCase()) {
+  if (!current?.research) return;
+  current.research = normalizeResearch(current.research);
+  const canSelect = Boolean(current.research.accessApproved);
+  if (!canSelect) current.research.isMulticenterCase = false;
+  els.fields.isMulticenterCase.disabled = !canSelect;
+  els.fields.isMulticenterCase.checked = Boolean(canSelect && current.research.isMulticenterCase);
+  els.researchAccessStatus.textContent = researchStatusText(current.research);
+  els.applyResearchAccess.textContent = current.research.accessApplicationStatus === "pending"
+    ? "多中心申请已保存"
+    : "申请加入多中心研究";
+}
+
 function render() {
   renderCaseList();
+  renderTrash();
   renderActiveCase();
   renderTutorial();
   renderImages();
@@ -660,6 +805,33 @@ function render() {
   renderFollowups();
   renderComments();
   renderClassification();
+}
+
+function trashExpiryText(item) {
+  if (!item.expiresAt) return "保留 30 天";
+  const expires = new Date(item.expiresAt);
+  if (Number.isNaN(expires.getTime())) return "保留 30 天";
+  return `${expires.toLocaleDateString()} 前可恢复`;
+}
+
+function renderTrash() {
+  if (!els.trashList || !els.trashCount) return;
+  state.trash ||= [];
+  els.trashCount.textContent = String(state.trash.length);
+  els.trashList.innerHTML = state.trash.length
+    ? state.trash.map((item) => `
+        <article class="trash-item">
+          <div>
+            <strong>${escapeHtml(item.code || "未命名病例")}</strong>
+            <span>${escapeHtml(trashExpiryText(item))}</span>
+          </div>
+          <div class="trash-actions">
+            <button class="tool-button" type="button" data-restore-case="${item.id}">恢复</button>
+            <button class="danger-button" type="button" data-purge-case="${item.id}">彻底删除</button>
+          </div>
+        </article>
+      `).join("")
+    : `<p class="helper-text">暂无删除病例。</p>`;
 }
 
 function renderCaseList() {
@@ -763,6 +935,8 @@ function renderActiveCase() {
   els.fields.hideMetadata.checked = current.privacyChecks.hideMetadata;
   els.fields.adminApplicationReason.value = current.adminApplication?.reason || "";
   els.fields.adminTeachingProfile.value = current.adminApplication?.teachingProfile || "";
+  current.research = normalizeResearch(current.research);
+  syncResearchUi(current);
   els.fields.ethicsApprovalId.value = current.research?.ethicsApprovalId || "";
   els.ethicsApprovalFileName.textContent = current.research?.ethicsApprovalFileName || "未上传";
   els.credentialFileName.textContent = current.research?.credentialFileName || "未上传";
@@ -930,7 +1104,8 @@ function measurementCategoriesForView(view = activeMeasurementView()) {
   return {
     lateral: ["preop-xray", "intraop-xray", "intraop-fluoro", "postop-xray", "preop-lateral-xray", "postop-lateral-xray"],
     axial: ["preop-xray", "intraop-xray", "intraop-fluoro", "postop-xray", "preop-ct", "postop-ct", "preop-axial-xray", "postop-axial-xray"],
-    ct: ["preop-ct", "postop-ct"]
+    ct: ["preop-ct", "postop-ct"],
+    distance: ["preop-xray", "intraop-xray", "intraop-fluoro", "postop-xray", "preop-ct", "postop-ct"]
   }[view] || [];
 }
 
@@ -938,8 +1113,14 @@ function measurementHelpText(view = activeMeasurementView()) {
   return {
     lateral: "跟骨侧位用于 Böhler 角和 Gissane 角：依次点击 4 个点，两点一条线，系统计算两线夹角。",
     axial: "跟骨轴位或 CT 可用于内外翻/轴线测量：资料缺失时允许选择可用的 X 线、透视或 CT 图像，依次点击 4 个点形成两条参考线。",
-    ct: "CT 层面用于记录关节面塌陷程度：可点击 2 个点画辅助线，但最终请按 CT 标尺或工作站读数填写毫米值。"
+    ct: "CT 层面用于记录关节面塌陷程度、台阶和间隙：可点击 2 个点画辅助线，但最终请按 CT 标尺或工作站读数填写毫米值。",
+    distance: "台阶或间隙测量：点击 2 个点形成测量线，系统先保存像素距离和带标记截图，后续可增加标尺换算。"
   }[view] || "";
+}
+
+function isDistanceMeasurementMode(type = "") {
+  const view = activeMeasurementView();
+  return view === "ct" || view === "distance" || measurementDistanceTypes.includes(type);
 }
 
 function measurementImagesForView(current, view = activeMeasurementView()) {
@@ -967,7 +1148,7 @@ function syncMeasurementUi(current = activeCase()) {
     button.classList.toggle("hidden-field", !views.includes(view));
   });
   els.ctMeasurementPanel.classList.toggle("hidden-field", view !== "ct");
-  els.measurementReadoutLabel.textContent = view === "ct" ? "当前辅助线" : "当前角度";
+  els.measurementReadoutLabel.textContent = isDistanceMeasurementMode() ? "当前距离" : "当前角度";
   els.measurementHelp.textContent = measurementHelpText(view);
 }
 
@@ -975,7 +1156,7 @@ function renderMeasurements() {
   const current = activeCase();
   if (!current) return;
   syncMeasurementUi(current);
-  const types = ["bohler", "gissane", "hindfoot-varus", "posterior-facet-depression", "custom"];
+  const types = ["bohler", "gissane", "hindfoot-varus", "step-off", "gap", "posterior-facet-depression", "custom"];
   els.measurementList.innerHTML = types.map((type) => {
     const records = current.measurements.filter((item) => item.type === type);
     const latest = records[0];
@@ -996,6 +1177,7 @@ function renderMeasurements() {
 function measurementValueText(record) {
   if (!record) return "";
   if (record.type === "posterior-facet-depression") return `${Number(record.valueMm).toFixed(1)} mm`;
+  if (measurementDistanceTypes.includes(record.type) || record.valuePx) return `${Number(record.valuePx || record.distancePx || 0).toFixed(0)} px`;
   return `${Number(record.angle).toFixed(1)}°`;
 }
 
@@ -1011,10 +1193,12 @@ function renderFollowupCard(item) {
   const reminder = reminderStatus(item.dueDate);
   const statusLabel = item.status === "completed" ? "随访结束" : "继续随访";
   const outcomeLabel = finalOutcomeLabel(item.finalOutcome);
+  const scoreLabel = item.score?.scale ? `${scoreConfigs[item.score.scale]?.label || item.score.scale} ${item.score.total}` : "";
   return `
     <article class="record-card">
       <strong>${escapeHtml(item.stage)} · VAS ${escapeHtml(item.vas || "-")}</strong>
       <span>功能评分 ${escapeHtml(item.functionScore || "-")} · ${escapeHtml(item.weightBearing)} · ${escapeHtml(statusLabel)}</span>
+      ${scoreLabel ? `<span class="reminder-badge scheduled">${escapeHtml(scoreLabel)}</span>` : ""}
       <span class="reminder-badge ${reminder.className}">${escapeHtml(reminder.label)}</span>
       ${outcomeLabel ? `<span class="reminder-badge scheduled">终极指标：${escapeHtml(outcomeLabel)}</span>` : ""}
       <p>${escapeHtml(item.notes || "无特殊情况")}</p>
@@ -1024,6 +1208,81 @@ function renderFollowupCard(item) {
       </div>
     </article>
   `;
+}
+
+function scoreOptions(max, step) {
+  const values = [];
+  for (let value = 0; value <= max; value += step) values.push(value);
+  if (!values.includes(max)) values.push(max);
+  return values.map((value) => `<option value="${value}">${value}</option>`).join("");
+}
+
+function renderScoreDialog(seed = activeScoreDraft) {
+  const scale = els.scoreScale.value || "aofas";
+  const config = scoreConfigs[scale] || scoreConfigs.aofas;
+  const seedItems = seed?.scale === scale ? seed.items || {} : {};
+  els.scoreItems.innerHTML = config.items.map((item) => `
+    <label>
+      ${escapeHtml(item.label)}（0-${item.max}）
+      <select data-score-item="${item.key}">
+        ${scoreOptions(item.max, item.step)}
+      </select>
+    </label>
+  `).join("");
+  $$("[data-score-item]").forEach((select) => {
+    select.value = String(seedItems[select.dataset.scoreItem] ?? 0);
+    select.addEventListener("change", updateScoreTotal);
+  });
+  updateScoreTotal();
+}
+
+function scoreDraftFromDialog() {
+  const scale = els.scoreScale.value || "aofas";
+  const config = scoreConfigs[scale] || scoreConfigs.aofas;
+  const items = {};
+  $$("[data-score-item]").forEach((select) => {
+    items[select.dataset.scoreItem] = Number(select.value);
+  });
+  const rawTotal = Object.values(items).reduce((sum, value) => sum + Number(value || 0), 0);
+  const total = config.average ? Math.round(rawTotal / Math.max(1, config.items.length)) : rawTotal;
+  return {
+    scale,
+    label: config.label,
+    items,
+    total
+  };
+}
+
+function updateScoreTotal() {
+  const draft = scoreDraftFromDialog();
+  els.scoreTotal.textContent = String(draft.total);
+  return draft;
+}
+
+function openScoreDialog() {
+  els.scoreScale.value = activeScoreDraft?.scale || "aofas";
+  renderScoreDialog(activeScoreDraft);
+  if (typeof els.scoreDialog.showModal === "function") els.scoreDialog.showModal();
+  else els.scoreDialog.setAttribute("open", "");
+}
+
+function closeScoreDialog() {
+  if (typeof els.scoreDialog.close === "function") els.scoreDialog.close();
+  else els.scoreDialog.removeAttribute("open");
+}
+
+function applyScoreDraft() {
+  activeScoreDraft = updateScoreTotal();
+  els.functionScore.value = String(activeScoreDraft.total);
+  closeScoreDialog();
+  markSaved("已写入功能评分");
+}
+
+function clearScoreDraft() {
+  activeScoreDraft = null;
+  els.functionScore.value = "";
+  closeScoreDialog();
+  markSaved("已取消评分表");
 }
 
 function finalOutcomeLabel(value) {
@@ -1106,8 +1365,10 @@ function labelForMeasurement(type) {
     bohler: "Böhler 角",
     gissane: "Gissane 角",
     "hindfoot-varus": "轴位内外翻",
+    "step-off": "台阶",
+    gap: "间隙",
     "posterior-facet-depression": "CT 关节面塌陷程度",
-    custom: "自定义角度"
+    custom: "自定义"
   }[type] || "角度";
 }
 
@@ -1332,10 +1593,10 @@ function drawMeasureOverlay(canvas) {
   });
 
   if (measurePoints.length >= 2) drawLine(ctx, measurePoints[0], measurePoints[1]);
-  if (view !== "ct" && measurePoints.length >= 4) drawLine(ctx, measurePoints[2], measurePoints[3]);
+  if (!isDistanceMeasurementMode() && measurePoints.length >= 4) drawLine(ctx, measurePoints[2], measurePoints[3]);
   ctx.restore();
 
-  if (view === "ct") {
+  if (isDistanceMeasurementMode()) {
     const distance = currentDistance();
     els.angleValue.textContent = distance ? `${distance.toFixed(0)} px` : "--";
     return;
@@ -1809,6 +2070,16 @@ function wireEvents() {
     render();
   });
 
+  els.trashList.addEventListener("click", (event) => {
+    const restoreButton = event.target.closest("[data-restore-case]");
+    if (restoreButton) {
+      restoreCase(restoreButton.dataset.restoreCase);
+      return;
+    }
+    const purgeButton = event.target.closest("[data-purge-case]");
+    if (purgeButton) purgeCase(purgeButton.dataset.purgeCase);
+  });
+
   els.caseList.addEventListener("change", (event) => {
     const select = event.target.closest("[data-case-privacy]");
     if (!select) return;
@@ -1826,13 +2097,13 @@ function wireEvents() {
 
   els.tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
-      const name = tab.dataset.tab;
+      const name = normalizeActiveTab(tab.dataset.tab);
       els.tabs.forEach((item) => item.classList.toggle("active", item === tab));
       Object.entries(els.panels).forEach(([key, panel]) => panel.classList.toggle("active", key === name));
       state.activeTab = name;
       persist();
       renderTutorial(name);
-      if (name === "measure") {
+      if (name === "images") {
         syncMeasurementUi();
         const image = selectedImage();
         if (image) loadEditorImage(image);
@@ -1877,6 +2148,30 @@ function wireEvents() {
 
   els.fields.adminTeachingProfile.addEventListener("input", () => {
     updateNestedCase("adminApplication.teachingProfile", els.fields.adminTeachingProfile.value);
+  });
+
+  els.fields.isMulticenterCase.addEventListener("change", () => {
+    const current = activeCase();
+    if (!current) return;
+    current.research = normalizeResearch(current.research);
+    if (!current.research.accessApproved) {
+      current.research.isMulticenterCase = false;
+      syncResearchUi(current);
+      markSaved("需先通过多中心准入");
+      return;
+    }
+    updateNestedCase("research.isMulticenterCase", els.fields.isMulticenterCase.checked);
+  });
+
+  els.applyResearchAccess.addEventListener("click", () => {
+    const current = activeCase();
+    if (!current) return;
+    current.research = normalizeResearch(current.research);
+    current.research.accessApplicationStatus = "pending";
+    current.updatedAt = new Date().toISOString();
+    persist();
+    syncResearchUi(current);
+    markSaved("多中心加入申请已保存");
   });
 
   [
@@ -1935,6 +2230,7 @@ function wireEvents() {
     imageEditor.img = null;
     measurePoints = [];
     renderImages();
+    renderMeasurements();
   });
   els.imageList.addEventListener("click", (event) => {
     const deleteButton = event.target.closest("[data-delete-image]");
@@ -1950,6 +2246,7 @@ function wireEvents() {
     perspectivePoints = [];
     measurePoints = [];
     renderImages();
+    renderMeasurements();
   });
   els.imageList.addEventListener("change", (event) => {
     const select = event.target.closest("[data-image-category]");
@@ -2051,7 +2348,7 @@ function wireEvents() {
     const rect = els.measureCanvas.getBoundingClientRect();
     const scaleX = els.measureCanvas.width / rect.width;
     const scaleY = els.measureCanvas.height / rect.height;
-    const maxPoints = activeMeasurementView() === "ct" ? 2 : 4;
+    const maxPoints = isDistanceMeasurementMode() ? 2 : 4;
     if (measurePoints.length >= maxPoints) measurePoints = [];
     measurePoints.push({
       x: (event.clientX - rect.left) * scaleX,
@@ -2072,6 +2369,14 @@ function wireEvents() {
   els.followupStatus.addEventListener("change", () => updateNestedCase("followupPlan.status", els.followupStatus.value));
   els.finalOutcome.addEventListener("change", () => updateNestedCase("followupPlan.finalOutcome", els.finalOutcome.value));
   els.addFollowup.addEventListener("click", addFollowup);
+  els.openScoreDialog.addEventListener("click", openScoreDialog);
+  els.closeScoreDialog.addEventListener("click", closeScoreDialog);
+  els.scoreScale.addEventListener("change", () => renderScoreDialog());
+  els.applyScoreDraft.addEventListener("click", applyScoreDraft);
+  els.clearScoreDraft.addEventListener("click", clearScoreDraft);
+  els.functionScore.addEventListener("input", () => {
+    activeScoreDraft = null;
+  });
   els.followupList.addEventListener("click", (event) => {
     const editButton = event.target.closest("[data-edit-followup]");
     if (editButton) {
@@ -2219,15 +2524,19 @@ function copyMeasurePoints(limit = measurePoints.length) {
 function saveMeasurement(type) {
   const current = activeCase();
   const image = selectedImage();
-  const angle = currentAngle();
-  if (!current || !image || !angle || !type) return;
+  if (!current || !image || !type) return;
+  const isDistance = measurementDistanceTypes.includes(type) || activeMeasurementView() === "distance";
+  const angle = isDistance ? null : currentAngle();
+  const valuePx = isDistance ? currentDistance() : null;
+  if (isDistance && !valuePx) return;
+  if (!isDistance && !angle) return;
   const snapshotDataUrl = measurementSnapshotDataUrl();
   current.measurements.unshift({
     id: makeId(),
     type,
     view: activeMeasurementView(),
-    angle,
-    points: copyMeasurePoints(4),
+    ...(isDistance ? { valuePx } : { angle }),
+    points: copyMeasurePoints(isDistance ? 2 : 4),
     snapshotDataUrl,
     imageId: image.id,
     imageName: image.name,
@@ -2274,6 +2583,7 @@ function addFollowup() {
     dueDate: els.followupDueDate.value,
     vas: els.vasScore.value,
     functionScore: els.functionScore.value,
+    score: activeScoreDraft ? { ...activeScoreDraft, items: { ...activeScoreDraft.items } } : null,
     weightBearing: els.weightBearing.value,
     status: els.followupStatus.value,
     finalOutcome: els.finalOutcome.value,
@@ -2305,6 +2615,7 @@ function editFollowup(id) {
   els.followupDueDate.value = item.dueDate || "";
   els.vasScore.value = item.vas || "";
   els.functionScore.value = item.functionScore || "";
+  activeScoreDraft = item.score ? { ...item.score, items: { ...(item.score.items || {}) } } : null;
   els.weightBearing.value = item.weightBearing || "未记录";
   els.followupStatus.value = item.status || "ongoing";
   els.finalOutcome.value = item.finalOutcome || "";
@@ -2328,6 +2639,7 @@ function deleteFollowup(id) {
 
 function resetFollowupForm() {
   editingFollowupId = null;
+  activeScoreDraft = null;
   els.vasScore.value = "";
   els.functionScore.value = "";
   els.followupDueDate.value = "";
@@ -2369,11 +2681,7 @@ function importData(event) {
     try {
       const incoming = JSON.parse(reader.result);
       if (!Array.isArray(incoming.cases)) throw new Error("Invalid data");
-      state = {
-        activeCaseId: incoming.activeCaseId || incoming.cases[0]?.id || null,
-        activeTab: incoming.activeTab || "overview",
-        cases: incoming.cases
-      };
+      state = normalizeState(incoming);
       persist();
       window.location.reload();
     } catch {

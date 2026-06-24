@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=19">
+    <link rel="stylesheet" href="styles.css?v=20">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -239,6 +239,11 @@
             <input id="caseSearch" type="search" placeholder="编号、标签、分型">
           </label>
           <div class="case-list" id="caseList"></div>
+          <details class="trash-box" id="trashBox">
+            <summary>垃圾箱 <span id="trashCount">0</span></summary>
+            <p>删除病例后先保留 30 天，可恢复或彻底删除。</p>
+            <div id="trashList" class="trash-list"></div>
+          </details>
         </aside>
 
         <section class="content" aria-live="polite">
@@ -246,7 +251,6 @@
             <button class="tab active" data-tab="overview">病例</button>
             <button class="tab" data-tab="classify">分型</button>
             <button class="tab" data-tab="images">影像</button>
-            <button class="tab" data-tab="measure">测量</button>
             <button class="tab" data-tab="followup">随访</button>
             <button class="tab" data-tab="discussion">讨论</button>
           </nav>
@@ -325,6 +329,17 @@
               <h3>合并损伤</h3>
               <p class="helper-text">没有合并损伤可以留空；如有，请勾选部位并补充具体内容。</p>
               <div class="injury-detail-grid">
+                <label class="wide priority-injury">
+                  <span><input type="checkbox" id="injurySoftTissue"> 软组织损伤</span>
+                  <input id="injurySoftTissueDetail" placeholder="皮肤张力、范围、处理方式等补充说明">
+                </label>
+                <div class="soft-tissue-options wide">
+                  <label><input type="checkbox" id="softTissueBlister"> 水泡</label>
+                  <label><input type="checkbox" id="softTissueBloodBlister"> 血泡</label>
+                  <label><input type="checkbox" id="softTissueSwelling"> 肿胀</label>
+                  <label><input type="checkbox" id="softTissueOpenWound"> 开放伤</label>
+                  <label><input type="checkbox" id="softTissueCompartment"> 骨筋膜室综合征</label>
+                </div>
                 <label>
                   <span><input type="checkbox" id="injurySpine"> 脊柱</span>
                   <input id="injurySpineDetail" placeholder="具体节段、骨折或神经症状">
@@ -345,17 +360,6 @@
                   <span><input type="checkbox" id="injuryOther"> 其他</span>
                   <input id="injuryOtherDetail" placeholder="其他部位或特殊情况">
                 </label>
-                <label class="wide">
-                  <span><input type="checkbox" id="injurySoftTissue"> 软组织损伤</span>
-                  <input id="injurySoftTissueDetail" placeholder="皮肤张力、范围、处理方式等补充说明">
-                </label>
-                <div class="soft-tissue-options wide">
-                  <label><input type="checkbox" id="softTissueBlister"> 水泡</label>
-                  <label><input type="checkbox" id="softTissueBloodBlister"> 血泡</label>
-                  <label><input type="checkbox" id="softTissueSwelling"> 肿胀</label>
-                  <label><input type="checkbox" id="softTissueOpenWound"> 开放伤</label>
-                  <label><input type="checkbox" id="softTissueCompartment"> 骨筋膜室综合征</label>
-                </div>
               </div>
             </div>
 
@@ -440,12 +444,12 @@
               </div>
             </div>
 
-            <div class="admin-panel" id="adminPanel">
-              <div>
-                <h3>管理员教学申请</h3>
-                <p>管理员需要经过团队认证。申请人应人品可靠、尊重隐私、教学水平较高，并愿意承担病例指导、内容审核和平台安全责任。</p>
-              </div>
-              <div class="form-grid">
+            <details class="admin-panel compact-application-panel" id="adminPanel">
+              <summary>
+                <strong>申请成为管理员</strong>
+                <span>团队认证后承担病例指导、内容审核和平台安全责任。</span>
+              </summary>
+              <div class="form-grid compact-two">
                 <label>
                   申请理由
                   <textarea id="adminApplicationReason" rows="3" placeholder="说明教学经验、专业方向和希望承担的管理员工作"></textarea>
@@ -455,27 +459,34 @@
                   <textarea id="adminTeachingProfile" rows="3" placeholder="课程、带教、病例讨论、学术任职等"></textarea>
                 </label>
               </div>
-            </div>
+            </details>
 
-            <div class="research-panel active research-closed-panel" id="researchPanel">
+            <div class="research-panel active" id="researchPanel">
               <div>
                 <h3>多中心研究</h3>
-                <p>多中心研究暂未开放申请。它会作为独立研究入组选项，不再等同于病例可见范围；同一病例将来可以选择私有、管理员可见、圈内教学或公开教学，同时再决定是否进入多中心研究候选。</p>
+                <p>多中心研究是独立选项，不等同于病例可见范围。只有已经通过多中心研究准入的学者或单位，才能把病例勾选为多中心病例。</p>
               </div>
-              <button class="tool-button disabled-action" type="button" disabled>多中心研究暂未开放</button>
-              <div class="form-grid">
+              <div class="research-actions">
+                <label class="toggle-row">
+                  <input id="isMulticenterCase" type="checkbox">
+                  是否为多中心
+                </label>
+                <button class="tool-button" id="applyResearchAccess" type="button">申请加入多中心研究</button>
+                <span class="status-pill warning" id="researchAccessStatus">未加入</span>
+              </div>
+              <div class="form-grid compact-three">
                 <label>
                   伦理审批编号
-                  <input id="ethicsApprovalId" placeholder="IRB/伦理批件编号" disabled>
+                  <input id="ethicsApprovalId" placeholder="IRB/伦理批件编号">
                 </label>
                 <label class="file-upload-label">
                   伦理审批文件
-                  <input type="file" id="ethicsApprovalFile" accept=".pdf,image/*" disabled>
+                  <input type="file" id="ethicsApprovalFile" accept=".pdf,image/*">
                   <span id="ethicsApprovalFileName">未上传</span>
                 </label>
                 <label class="file-upload-label">
                   资质材料
-                  <input type="file" id="credentialFile" accept=".pdf,image/*" disabled>
+                  <input type="file" id="credentialFile" accept=".pdf,image/*">
                   <span id="credentialFileName">未上传</span>
                 </label>
               </div>
@@ -491,8 +502,8 @@
               <span class="status-pill warning">医生确认</span>
             </div>
 
-            <div class="classification-grid">
-              <article class="classification-card">
+            <div class="classification-layout">
+              <article class="classification-card compact-classification-card">
                 <h3>Essex-Lopresti 分型</h3>
                 <label>
                   分型结果
@@ -503,8 +514,6 @@
                     <option>Comminuted/atypical</option>
                   </select>
                 </label>
-              </article>
-              <article class="classification-card">
                 <h3>Sanders 分型</h3>
                 <label>
                   分型结果
@@ -516,8 +525,17 @@
                     <option>IV</option>
                   </select>
                 </label>
+                <h3>骨折脱位型</h3>
+                <label>
+                  是否骨折脱位
+                  <select id="fractureDislocation">
+                    <option value="">未判断</option>
+                    <option value="yes">是</option>
+                    <option value="no">否</option>
+                  </select>
+                </label>
               </article>
-              <article class="classification-card">
+              <article class="classification-card zwipp-classification-card">
                 <h3>Zwipp 分型采集</h3>
                 <div class="form-grid compact">
                   <label>
@@ -556,14 +574,6 @@
             </div>
 
             <div class="form-grid">
-              <label>
-                骨折脱位型
-                <select id="fractureDislocation">
-                  <option value="">未判断</option>
-                  <option value="yes">是</option>
-                  <option value="no">否</option>
-                </select>
-              </label>
               <label class="wide">
                 分型补充
                 <textarea id="specialClassification" rows="3" placeholder="对无法归入常见分型的情况进行补充"></textarea>
@@ -579,8 +589,8 @@
           <section class="tab-panel" id="imagesPanel">
             <div class="section-heading">
               <div>
-                <p class="eyebrow">Image Workspace</p>
-                <h2>影像上传、裁剪与增强</h2>
+                <p class="eyebrow">Image And Measurement Workspace</p>
+                <h2>影像上传、处理与测量</h2>
               </div>
               <div class="section-actions">
                 <label class="ghost-button file-action">
@@ -673,13 +683,12 @@
                 <p class="helper-text">上传的普通图片会经 Canvas 重新编码，便于去除常见 EXIF metadata。DICOM 支持将在后续加入。</p>
               </div>
             </div>
-          </section>
 
-          <section class="tab-panel" id="measurePanel">
-            <div class="section-heading">
+            <section class="embedded-measure-panel" id="measurePanel">
+            <div class="section-heading compact-heading">
               <div>
                 <p class="eyebrow">Semi-automatic Measurement</p>
-                <h2>角度半自动测量</h2>
+                <h2>当前影像测量</h2>
               </div>
             </div>
 
@@ -695,6 +704,7 @@
                       <option value="lateral">跟骨侧位：Böhler 角 / Gissane 角</option>
                       <option value="axial">跟骨轴位：轴位内外翻</option>
                       <option value="ct">CT 层面：关节面塌陷程度</option>
+                      <option value="distance">台阶 / 间隙：2 点距离</option>
                     </select>
                   </label>
                   <label>
@@ -710,7 +720,9 @@
                   <button class="tool-button" data-save-measurement="bohler" data-measurement-view="lateral">记录为 Böhler 角</button>
                   <button class="tool-button" data-save-measurement="gissane" data-measurement-view="lateral">记录为 Gissane 角</button>
                   <button class="tool-button" data-save-measurement="hindfoot-varus" data-measurement-view="axial">记录为轴位内外翻</button>
-                  <button class="tool-button" data-save-measurement="custom" data-measurement-view="lateral axial">记录为自定义角度</button>
+                  <button class="tool-button" data-save-measurement="step-off" data-measurement-view="ct distance">记录为台阶</button>
+                  <button class="tool-button" data-save-measurement="gap" data-measurement-view="ct distance">记录为间隙</button>
+                  <button class="tool-button" data-save-measurement="custom" data-measurement-view="lateral axial distance">记录为自定义</button>
                 </div>
                 <div class="ct-measurement-panel" id="ctMeasurementPanel">
                   <label>
@@ -724,6 +736,7 @@
                 <div id="measurementList" class="record-list"></div>
               </div>
             </div>
+            </section>
           </section>
 
           <section class="tab-panel" id="followupPanel">
@@ -764,10 +777,13 @@
                 疼痛评分 VAS
                 <input id="vasScore" type="number" min="0" max="10" placeholder="0-10">
               </label>
-              <label>
-                功能评分
-                <input id="functionScore" type="number" min="0" max="100" placeholder="AOFAS/自定义">
-              </label>
+              <div class="score-field">
+                <label>
+                  功能评分
+                  <input id="functionScore" type="number" min="0" max="100" placeholder="AOFAS/自定义">
+                </label>
+                <button class="tool-button" id="openScoreDialog" type="button">打开评分表</button>
+              </div>
               <label>
                 负重状态
                 <select id="weightBearing">
@@ -831,6 +847,36 @@
         <button class="primary-button" data-create-case>新建病例</button>
       </div>
     </template>
+
+    <dialog class="score-dialog" id="scoreDialog">
+      <form method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">Score Sheet</p>
+            <h3>功能评分表</h3>
+          </div>
+          <button class="icon-button modal-close" id="closeScoreDialog" type="button" aria-label="关闭评分表">×</button>
+        </div>
+        <label>
+          评分类型
+          <select id="scoreScale">
+            <option value="aofas">AOFAS 足踝-后足评分</option>
+            <option value="maryland">Maryland 足部评分</option>
+            <option value="sf36">SF-36 生活质量评分</option>
+          </select>
+        </label>
+        <div class="score-items" id="scoreItems"></div>
+        <div class="score-total">
+          <span>自动合计</span>
+          <strong id="scoreTotal">0</strong>
+        </div>
+        <p class="helper-text">当前为原型录入结构，正式临床使用前需核对量表授权、版本和计分规则。</p>
+        <div class="dialog-actions">
+          <button class="ghost-button" id="clearScoreDraft" type="button">不选择评分</button>
+          <button class="primary-button" id="applyScoreDraft" type="button">写入功能评分</button>
+        </div>
+      </form>
+    </dialog>
 
     <script src="app.js"></script>
   </body>

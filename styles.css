@@ -864,6 +864,59 @@ textarea:focus {
   background: #fff0ec;
 }
 
+.trash-box {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(31, 45, 43, 0.08);
+}
+
+.trash-box summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 36px;
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.trash-box p {
+  margin: 4px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.trash-list {
+  display: grid;
+  gap: 8px;
+}
+
+.trash-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.trash-item div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.trash-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.trash-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .case-tags {
   display: flex;
   flex-wrap: wrap;
@@ -1102,13 +1155,41 @@ textarea:focus {
   font-weight: 800;
 }
 
-.classification-grid {
+.priority-injury {
+  padding: 12px;
+  border: 1px solid rgba(23, 107, 106, 0.24);
+  border-radius: 8px;
+  background: #f4fbf9;
+}
+
+.classification-grid,
+.classification-layout {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .classification-card {
   min-height: 100%;
   background: #fff;
+}
+
+.classification-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.4fr);
+  gap: 12px;
+}
+
+.compact-classification-card {
+  align-content: start;
+}
+
+.compact-classification-card h3:not(:first-child) {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(31, 45, 43, 0.08);
+}
+
+.zwipp-classification-card {
+  align-content: start;
 }
 
 .classification-card .form-grid.compact {
@@ -1162,47 +1243,60 @@ textarea:focus {
   line-height: 1.55;
 }
 
-.admin-panel,
-.research-panel {
-  display: none;
-}
-
-.admin-panel.active,
-.research-panel.active {
-  display: grid;
-}
-
-.research-closed-panel {
-  border-style: dashed;
-  opacity: 0.72;
-}
-
-.disabled-action:disabled {
-  border-color: var(--line);
-  background: #eef1f0;
-  color: var(--muted);
-}
-
 .admin-panel {
+  display: grid;
   border-color: rgba(23, 107, 106, 0.35);
   background: #f4fbf9;
 }
 
-.admin-panel p {
-  margin-bottom: 0;
+.compact-application-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.compact-application-panel summary {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  cursor: pointer;
+}
+
+.compact-application-panel summary span {
   color: var(--muted);
-  line-height: 1.55;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.compact-application-panel .form-grid {
+  padding: 0 14px 14px;
 }
 
 .research-panel {
+  display: grid;
   border-color: rgba(170, 122, 23, 0.35);
   background: #fffaf0;
+}
+
+.research-actions {
+  display: grid;
+  grid-template-columns: minmax(160px, auto) auto minmax(90px, auto);
+  gap: 10px;
+  align-items: center;
 }
 
 .research-panel p {
   margin-bottom: 0;
   color: var(--muted);
   line-height: 1.55;
+}
+
+.compact-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.compact-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .privacy-checklist label {
@@ -1264,6 +1358,17 @@ textarea:focus {
   align-items: start;
 }
 
+.embedded-measure-panel {
+  display: grid;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.compact-heading h2 {
+  font-size: 22px;
+}
+
 .measurement-canvas-card {
   aspect-ratio: 4 / 3;
 }
@@ -1280,6 +1385,61 @@ textarea:focus {
 
 .measurement-grid .measurement-actions {
   grid-template-columns: 1fr;
+}
+
+.score-field {
+  display: grid;
+  gap: 8px;
+}
+
+.score-dialog {
+  width: min(680px, calc(100vw - 28px));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 24px 80px rgba(18, 32, 31, 0.22);
+}
+
+.score-dialog::backdrop {
+  background: rgba(18, 32, 31, 0.35);
+}
+
+.score-dialog form {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.dialog-heading,
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.score-items {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.score-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--accent-strong);
+  font-weight: 900;
+}
+
+.score-total strong {
+  font-size: 28px;
 }
 
 .measurement-actions {
@@ -1555,6 +1715,7 @@ input[type="range"] {
   .visibility-options,
   .injury-detail-grid,
   .classification-grid,
+  .classification-layout,
   .note-layout,
   .image-workspace,
   .measurement-grid,
@@ -1665,6 +1826,10 @@ input[type="range"] {
   .fragment-checks,
   .soft-tissue-options,
   .bulk-image-tools,
+  .research-actions,
+  .compact-two,
+  .compact-three,
+  .score-items,
   .measurement-actions,
   .image-row {
     width: 100%;
