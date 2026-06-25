@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=23">
+    <link rel="stylesheet" href="styles.css?v=24">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -179,7 +179,7 @@
             </details>
             <details>
               <summary>患者隐私、病例资料与敏感信息保护</summary>
-              <p>病例、影像、随访资料、身份证号、电话、病历号、住院号、面部图像、二维码、检查号、精确日期、罕见身份线索等均可能构成个人信息或敏感个人信息。共享病例、公开区、圈内讨论、普通导出和多中心研究数据不得包含可识别患者的信息。医生因随访需要记录的姓名、电话、身份证号等，应仅保存在“医生本地私密随访信息”栏，由医生本人在当前设备和浏览器内使用，不进入公开病例、圈内讨论、普通导出或科研数据集。正式联网部署前，应进一步落实授权、加密、访问控制、审计和删除机制。</p>
+              <p>病例、影像、随访资料、身份证号、电话、病历号、住院号、面部图像、二维码、检查号、精确日期、罕见身份线索等均可能构成个人信息或敏感个人信息。共享病例、公开区、圈内讨论、普通导出和多中心研究数据不得包含可识别患者的信息。用户承诺上传至讨论、教学、公开或科研范围的病例资料已完成去标识化；若系统提示存在敏感信息，应先处理后再发布。医生因随访需要记录的姓名、电话、身份证号等，应仅保存在“医生本地私密随访信息”栏，由医生本人在当前设备和浏览器内使用，不进入公开病例、圈内讨论、普通导出或科研数据集。正式联网部署前，应进一步落实授权、加密、访问控制、审计和删除机制。</p>
             </details>
             <details>
               <summary>多中心研究与伦理审批</summary>
@@ -196,7 +196,7 @@
           </div>
           <label class="toggle-row">
             <input id="accessAgreement" type="checkbox" required>
-            我已阅读并同意实名制注册、资质审核、隐私保护、平台使用边界和违规追责告知
+            我已阅读并同意实名制注册、资质审核、去标识化上传、隐私保护、平台使用边界和违规追责告知
           </label>
         </div>
         <p class="access-warning">正式部署时，这一步必须由服务端保存、审核和放行；前端本地提交只用于原型演示。</p>
@@ -329,17 +329,20 @@
               <h3>合并损伤</h3>
               <p class="helper-text">没有合并损伤可以留空；如有，请勾选部位并补充具体内容。</p>
               <div class="injury-detail-grid">
-                <label class="wide priority-injury">
+                <label class="wide priority-injury soft-tissue-heading">
                   <span><input type="checkbox" id="injurySoftTissue"> 软组织损伤</span>
-                  <input id="injurySoftTissueDetail" placeholder="皮肤张力、范围、处理方式等补充说明">
                 </label>
                 <div class="soft-tissue-options wide">
-                  <label><input type="checkbox" id="softTissueBlister"> 水泡</label>
                   <label><input type="checkbox" id="softTissueBloodBlister"> 血泡</label>
-                  <label><input type="checkbox" id="softTissueSwelling"> 肿胀</label>
-                  <label><input type="checkbox" id="softTissueOpenWound"> 开放伤</label>
+                  <label><input type="checkbox" id="softTissueBlister"> 水泡</label>
+                  <label><input type="checkbox" id="softTissueOpenWound"> 开放性骨折</label>
+                  <label><input type="checkbox" id="softTissueSwelling"> 明显肿胀</label>
                   <label><input type="checkbox" id="softTissueCompartment"> 骨筋膜室综合征</label>
                 </div>
+                <label class="wide">
+                  合并其他软组织损伤
+                  <input id="injurySoftTissueDetail" placeholder="皮肤坏死、挫裂伤、污染、张力性改变等">
+                </label>
                 <label>
                   <span><input type="checkbox" id="injurySpine"> 脊柱</span>
                   <input id="injurySpineDetail" placeholder="具体节段、骨折或神经症状">
@@ -440,7 +443,7 @@
                 <label><input type="checkbox" id="hideDates"> 已处理精确日期</label>
                 <label><input type="checkbox" id="hideHospital"> 已遮挡医院/二维码/检查号</label>
                 <label><input type="checkbox" id="hideMetadata"> 上传图像已重新编码</label>
-                <p>公开病例前请再次人工检查。当前原型不适合把可识别患者资料放入共享、公开或科研数据环境；本地私密随访信息应仅由医生本人在本机保存和使用。</p>
+              <p>发布到讨论、教学、公开或科研范围前，系统会进行中等敏感度隐私审核；若提示存在姓名、电话、身份证号、检查号、二维码或患者信息栏，请先处理后再发布。本地私密随访信息应仅由医生本人在本机保存和使用。</p>
               </div>
             </div>
 
@@ -607,112 +610,28 @@
             <div class="image-workspace">
               <aside class="image-filmstrip" aria-label="影像缩略图">
                 <div class="filmstrip-heading">
-                  <strong>影像序列</strong>
-                  <span id="imageUploadStatus" aria-live="polite">未选择影像</span>
-                </div>
-                <div class="filmstrip-filters" aria-label="影像筛选">
-                  <label>
-                    阶段筛选
-                    <select id="imagePhaseFilter">
-                      <option value="all">全部阶段</option>
-                      <option value="preop">术前</option>
-                      <option value="intraop">术中</option>
-                      <option value="postop">术后</option>
-                      <option value="followup">随访</option>
-                      <option value="unclassified">待归类</option>
-                    </select>
-                  </label>
-                  <label>
-                    时间点筛选
-                    <select id="imageTimepointFilter">
-                      <option value="all">全部时间点</option>
-                      <option value="pre-injury">伤前/既往</option>
-                      <option value="injury-day">受伤当天</option>
-                      <option value="preop">术前</option>
-                      <option value="intraop">术中</option>
-                      <option value="postop-immediate">术后即刻</option>
-                      <option value="postop-2w">术后 2 周</option>
-                      <option value="postop-6w">术后 6 周</option>
-                      <option value="postop-3m">术后 3 个月</option>
-                      <option value="postop-6m">术后 6 个月</option>
-                      <option value="postop-12m">术后 12 个月</option>
-                      <option value="custom">自定义时间点</option>
-                    </select>
-                  </label>
-                  <label>
-                    资料类型
-                    <select id="imageModalityFilter">
-                      <option value="all">全部类型</option>
-                      <option value="xray">X 线</option>
-                      <option value="ct">CT</option>
-                      <option value="fluoro">透视</option>
-                      <option value="appearance">足部外观</option>
-                      <option value="rom">活动度</option>
-                      <option value="incision">切口/软组织</option>
-                      <option value="photo">普通照片</option>
-                      <option value="other">其他</option>
-                    </select>
-                  </label>
-                  <label>
-                    具体归类
-                  <select id="imageCategoryFilter">
-                    <option value="all">全部归类</option>
-                    <option value="unclassified">待归类</option>
-                    <option value="preop-xray">术前 X 线</option>
-                    <option value="intraop-xray">术中 X 线</option>
-                    <option value="intraop-fluoro">术中透视</option>
-                    <option value="postop-xray">术后 X 线</option>
-                    <option value="preop-ct">术前 CT</option>
-                    <option value="postop-ct">术后 CT</option>
-                    <option value="followup-xray">随访 X 线</option>
-                    <option value="followup-ct">随访 CT</option>
-                    <option value="foot-appearance">足部外观</option>
-                    <option value="rom-photo">活动度照片</option>
-                    <option value="incision-photo">切口/软组织照片</option>
-                    <option value="intraop-other">术中其他图片</option>
-                    <option value="other">其他图片</option>
-                  </select>
-                  </label>
-                </div>
-                <details class="filmstrip-bulk" open>
-                  <summary>批量归类</summary>
-                  <p class="helper-text">先用上方筛选查看某一类影像，再勾选缩略图统一归类；正位、侧位、轴位资料允许缺失。</p>
-                  <div class="bulk-image-tools stacked-tools">
-                    <label class="toggle-row">
-                      <input id="selectAllImages" type="checkbox">
-                      全选当前筛选结果
-                    </label>
-                    <label>
-                      归类为
-                      <select id="bulkImageCategory">
-                        <option value="unclassified">待归类</option>
-                        <option value="preop-xray">术前 X 线</option>
-                        <option value="intraop-xray">术中 X 线</option>
-                        <option value="intraop-fluoro">术中透视</option>
-                        <option value="postop-xray">术后 X 线</option>
-                        <option value="preop-ct">术前 CT</option>
-                        <option value="postop-ct">术后 CT</option>
-                        <option value="followup-xray">随访 X 线</option>
-                        <option value="followup-ct">随访 CT</option>
-                        <option value="foot-appearance">足部外观</option>
-                        <option value="rom-photo">活动度照片</option>
-                        <option value="incision-photo">切口/软组织照片</option>
-                        <option value="intraop-other">术中其他图片</option>
-                        <option value="other">其他图片</option>
-                      </select>
-                    </label>
-                    <button class="tool-button" id="applyBulkImageCategory" type="button">应用到勾选影像</button>
+                  <div>
+                    <strong>影像序列</strong>
+                    <small>按临床时间自动排列</small>
                   </div>
-                </details>
+                  <span id="imageUploadStatus" aria-live="polite">未选择影像</span>
+                  <button class="tool-button compact-tool" id="toggleImageOrganize" type="button">整理</button>
+                </div>
                 <select id="imageSelect" class="hidden-field" aria-label="当前影像"></select>
                 <div id="imageList" class="image-list"></div>
+                <div class="image-organize-bar hidden-field" id="imageOrganizeBar">
+                  <strong id="imageSelectionCount">已选 0 张</strong>
+                  <button class="tool-button" id="openImageClassify" type="button">归类</button>
+                  <button class="danger-button" id="deleteSelectedImages" type="button">删除</button>
+                  <button class="tool-button" id="cancelImageOrganize" type="button">取消</button>
+                </div>
               </aside>
 
               <div class="image-main-stage">
                 <div class="canvas-card c-arm-viewer">
                   <canvas id="imageCanvas" width="960" height="640" aria-label="影像处理画布"></canvas>
                 </div>
-                <p class="helper-text">上传的普通图片会经 Canvas 重新编码，便于去除常见 EXIF metadata。DICOM 支持将在后续加入。</p>
+                <p class="helper-text">默认阅片模式：拖动大图调亮度和对比度，点击缩略图切换影像；只有主动选择测量项目后，点击大图才会记录测量点。</p>
               </div>
 
               <aside class="tool-panel workstation-tools" aria-label="影像操作">
@@ -741,7 +660,7 @@
                   <summary>采集清理</summary>
                   <label class="toggle-row">
                     <input id="maskMode" type="checkbox">
-                    遮挡反光/人物/患者信息
+                    手动遮挡敏感区域
                   </label>
                   <label>
                     遮挡颜色
@@ -750,12 +669,8 @@
                       <option value="white">白色遮挡</option>
                     </select>
                   </label>
-                  <p class="helper-text">开启后在中间影像上拖出矩形区域，松手即保存为一个处理步骤；可用后退一步恢复。</p>
-                  <div class="privacy-checklist compact-capture-checks">
-                    <label><input id="captureHideReflection" type="checkbox">反光人物已处理</label>
-                    <label><input id="captureHidePatientInfo" type="checkbox">患者信息已遮挡</label>
-                    <label><input id="captureReadyForClassify" type="checkbox">确认后再归类</label>
-                  </div>
+                  <p class="helper-text">正式版会先自动生成已脱敏副本，原始图只临时用于处理，不进入病例库；自动审核不确定时，再提示医生手动遮挡。</p>
+                  <p class="helper-text">当前原型可手动拖出矩形遮挡姓名、号码、二维码、患者信息栏或屏幕反光区域，松手即保存为处理步骤。</p>
                 </details>
 
                 <details class="tool-group">
@@ -773,10 +688,10 @@
                     黑白滤镜
                   </label>
                   <label class="toggle-row">
-                    <input id="gestureAdjustMode" type="checkbox">
-                    拖动调窗
+                    <input id="gestureAdjustMode" type="checkbox" checked>
+                    默认拖动调窗
                   </label>
-                  <p class="helper-text">开启后在影像上左右拖动调对比度、上下拖动调亮度；滑块仍可精细调整，适合电脑端和后续移动端并存。</p>
+                  <p class="helper-text">阅片模式下，中间大图左右拖动调对比度、上下拖动调亮度；点击图片不会开始测量。</p>
                   <label>
                     亮度
                     <input id="brightness" type="range" min="-50" max="50" value="0">
@@ -799,8 +714,6 @@
                     <select id="measurementView">
                       <option value="lateral">跟骨侧位：Böhler 角 / Gissane 角</option>
                       <option value="axial">跟骨轴位：轴位内外翻</option>
-                      <option value="ct">CT 层面：关节面塌陷程度</option>
-                      <option value="distance">台阶 / 间隙：2 点距离</option>
                     </select>
                   </label>
                   <label>
@@ -813,22 +726,17 @@
                   <strong id="angleValue">--°</strong>
                 </div>
                 <div class="measurement-actions">
-                  <button class="tool-button" data-save-measurement="bohler" data-measurement-view="lateral">记录为 Böhler 角</button>
-                  <button class="tool-button" data-save-measurement="gissane" data-measurement-view="lateral">记录为 Gissane 角</button>
-                  <button class="tool-button" data-save-measurement="hindfoot-varus" data-measurement-view="axial">记录为轴位内外翻</button>
-                  <button class="tool-button" data-save-measurement="step-off" data-measurement-view="ct distance">记录为台阶</button>
-                  <button class="tool-button" data-save-measurement="gap" data-measurement-view="ct distance">记录为间隙</button>
-                  <button class="tool-button" data-save-measurement="custom" data-measurement-view="lateral axial distance">记录为自定义</button>
+                  <button class="tool-button" data-start-measurement="bohler" data-measurement-view="lateral">Böhler 角</button>
+                  <button class="tool-button" data-start-measurement="gissane" data-measurement-view="lateral">Gissane 角</button>
+                  <button class="tool-button" data-start-measurement="hindfoot-varus" data-measurement-view="axial">轴位内外翻</button>
+                  <button class="tool-button" data-start-measurement="custom" data-measurement-view="lateral axial">自定义角度</button>
                 </div>
-                <div class="ct-measurement-panel" id="ctMeasurementPanel">
-                  <label>
-                    关节面塌陷程度（mm）
-                    <input id="ctDepressionValue" type="number" min="0" max="80" step="0.1" placeholder="例如 4.5">
-                  </label>
-                  <button class="tool-button" id="saveCtDepression" type="button">记录为关节面塌陷程度</button>
+                <div class="measurement-actions measurement-confirm-actions">
+                  <button id="saveActiveMeasurement" class="tool-button" type="button">保存测量图</button>
+                  <button id="exitMeasurementMode" class="tool-button" type="button">退出测量</button>
                 </div>
                 <button id="resetPoints" class="tool-button">重置点位</button>
-                <p class="helper-text" id="measurementHelp">跟骨侧位用于 Böhler 角和 Gissane 角：依次点击 4 个点，两点一条线，系统计算两线夹角。</p>
+                <p class="helper-text" id="measurementHelp">默认是阅片模式。点击某个测量项目后，再在中间影像上依次点 4 个点，保存后自动回到阅片模式。</p>
                 <div id="measurementList" class="record-list"></div>
                 </details>
               </aside>
@@ -927,7 +835,7 @@
             <div class="discussion-forum">
               <aside class="discussion-board">
                 <h3>需要大家一起看的病例</h3>
-                <p class="helper-text">公开、圈内教学或管理员可见病例会自动生成阅读卡片，方便大家像论坛一样进入讨论。</p>
+                <p class="helper-text">公开、圈内教学或管理员可见病例会自动生成阅读卡片，方便大家像论坛一样进入讨论。发布讨论前会进行中等敏感度隐私审核，高风险信息会被阻止发布。</p>
                 <div id="discussionBoard" class="discussion-board-list"></div>
               </aside>
               <article class="case-reading-view">
@@ -980,6 +888,53 @@
         <div class="dialog-actions">
           <button class="ghost-button" id="clearScoreDraft" type="button">不选择评分</button>
           <button class="primary-button" id="applyScoreDraft" type="button">写入功能评分</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="score-dialog image-classify-dialog" id="imageClassifyDialog">
+      <form method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">Image Filing</p>
+            <h3>归类选中影像</h3>
+          </div>
+          <button class="icon-button modal-close" id="closeImageClassify" type="button" aria-label="关闭归类窗口">×</button>
+        </div>
+        <label>
+          归类为
+          <select id="bulkImageCategory">
+            <option value="unclassified">待归类</option>
+            <option value="preop-xray">术前 X 线</option>
+            <option value="preop-ct">术前 CT</option>
+            <option value="intraop-fluoro">术中透视</option>
+            <option value="intraop-xray">术中 X 线</option>
+            <option value="intraop-other">术中照片/其他</option>
+            <option value="postop-xray">术后即刻 X 线</option>
+            <option value="postop-ct">术后即刻 CT</option>
+            <option value="followup-xray">随访 X 线</option>
+            <option value="followup-ct">随访 CT</option>
+            <option value="foot-appearance">足部外观</option>
+            <option value="rom-photo">活动度照片</option>
+            <option value="incision-photo">切口/软组织照片</option>
+            <option value="other">其他图片</option>
+          </select>
+        </label>
+        <label id="followupTimepointWrap" class="hidden-field">
+          随访时间点
+          <input id="followupTimepointInput" list="followupTimepointOptions" placeholder="例如 5 周、6 周、3 月、14 个月">
+          <datalist id="followupTimepointOptions">
+            <option value="4 周"></option>
+            <option value="8 周"></option>
+            <option value="3 月"></option>
+            <option value="6 月"></option>
+            <option value="12 月"></option>
+            <option value="24 月"></option>
+          </datalist>
+        </label>
+        <p class="helper-text">随访时间点是推荐项，不会默认占位；只有真正上传了该时间点影像后才在左侧显示。</p>
+        <div class="dialog-actions">
+          <button class="ghost-button" id="applyBulkImageCategory" type="button">应用归类</button>
         </div>
       </form>
     </dialog>

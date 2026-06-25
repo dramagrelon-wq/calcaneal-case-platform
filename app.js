@@ -24,13 +24,16 @@ let measurePoints = [];
 let editingMeasurementId = null;
 let editingFollowupId = null;
 let activeScoreDraft = null;
+let imageOrganizeMode = false;
+let selectedImageIds = new Set();
+let activeMeasurementType = null;
 let perspectiveMode = false;
 let perspectivePoints = [];
 let draggedPerspectivePoint = null;
 let maskMode = false;
 let maskStartPoint = null;
 let maskPreviewPoint = null;
-let gestureAdjustMode = false;
+let gestureAdjustMode = true;
 let gestureStart = null;
 let introTimer = null;
 let introStep = 0;
@@ -47,8 +50,8 @@ const introSteps = [
 const tutorialGuides = {
   overview: ["Case Intake Guide", "如何录入一个跟骨骨折病例", "先完成病例编号、受伤机制、合并损伤和隐私检查。病例可见范围在左侧病例卡片中选择，字段变更会自动保存，也可以点“保存”手动确认。"],
   classify: ["Classification Guide", "如何完成分型记录", "Essex-Lopresti、Sanders 和 Zwipp 作为同等重要的记录入口填写，最后再补充骨折脱位型和特殊情况。"],
-  images: ["Image Workspace Guide", "如何上传、处理和测量影像", "批量上传后先分类，再选择单张影像做裁剪、增强、四点矫正和测量。测量会另外保存一张带标记线的截图，原始分类影像仍保留在影像列表中。"],
-  measure: ["Measurement Guide", "如何做影像测量", "测量已经合并到影像页。先选当前影像和测量场景，再记录 Böhler/Gissane、轴位内外翻、台阶、间隙或 CT 关节面塌陷。"],
+  images: ["Image Workspace Guide", "如何上传、整理和阅片", "影像默认按术前、术中、术后即刻和随访排列。点击缩略图只是在中间看片；需要归类或删除时点左侧“整理”，需要测量时再主动选择测量项目。"],
+  measure: ["Measurement Guide", "如何做影像测量", "测量已经合并到影像页。默认是阅片模式，只有选择 Böhler 角、Gissane 角、轴位内外翻或自定义角度后，点击影像才会记录测量点。"],
   followup: ["Follow-up Guide", "如何安排随访", "先设默认随访间隔，再记录提醒日期、VAS、功能评分、负重状态和终极指标。随访结束后仍可保留关键结局。"],
   discussion: ["Discussion Guide", "如何组织病例讨论", "讨论区用于记录术前计划、复位策略、影像判断和术后复盘。公开前仍需确认病例已经充分去标识化。"]
 };
@@ -63,16 +66,16 @@ const injuryLabels = {
   other: "其他"
 };
 
-const softTissueKeys = ["blister", "bloodBlister", "swelling", "openWound", "compartment"];
+const softTissueKeys = ["bloodBlister", "blister", "openWound", "swelling", "compartment"];
 const softTissueLabels = {
-  blister: "水泡",
   bloodBlister: "血泡",
-  swelling: "肿胀",
-  openWound: "开放伤",
+  blister: "水泡",
+  openWound: "开放性骨折",
+  swelling: "明显肿胀",
   compartment: "骨筋膜室综合征"
 };
 
-const measurementDistanceTypes = ["step-off", "gap"];
+const measurementDistanceTypes = [];
 
 const scoreConfigs = {
   aofas: {
@@ -261,14 +264,19 @@ const els = {
   credentialFileName: $("#credentialFileName"),
   imageUpload: $("#imageUpload"),
   cameraCapture: $("#cameraCapture"),
-  imagePhaseFilter: $("#imagePhaseFilter"),
-  imageTimepointFilter: $("#imageTimepointFilter"),
-  imageModalityFilter: $("#imageModalityFilter"),
-  imageCategoryFilter: $("#imageCategoryFilter"),
   imageSelect: $("#imageSelect"),
   imageList: $("#imageList"),
+  toggleImageOrganize: $("#toggleImageOrganize"),
+  imageOrganizeBar: $("#imageOrganizeBar"),
+  imageSelectionCount: $("#imageSelectionCount"),
+  openImageClassify: $("#openImageClassify"),
+  deleteSelectedImages: $("#deleteSelectedImages"),
+  cancelImageOrganize: $("#cancelImageOrganize"),
+  imageClassifyDialog: $("#imageClassifyDialog"),
+  closeImageClassify: $("#closeImageClassify"),
+  followupTimepointWrap: $("#followupTimepointWrap"),
+  followupTimepointInput: $("#followupTimepointInput"),
   imageCanvas: $("#imageCanvas"),
-  selectAllImages: $("#selectAllImages"),
   bulkImageCategory: $("#bulkImageCategory"),
   applyBulkImageCategory: $("#applyBulkImageCategory"),
   autoCrop: $("#autoCrop"),
@@ -299,7 +307,9 @@ const els = {
   measurementReadoutLabel: $("#measurementReadoutLabel"),
   angleValue: $("#angleValue"),
   resetPoints: $("#resetPoints"),
-  measurementButtons: $$("[data-save-measurement]"),
+  measurementButtons: $$("[data-start-measurement]"),
+  saveActiveMeasurement: $("#saveActiveMeasurement"),
+  exitMeasurementMode: $("#exitMeasurementMode"),
   ctMeasurementPanel: $("#ctMeasurementPanel"),
   ctDepressionValue: $("#ctDepressionValue"),
   saveCtDepression: $("#saveCtDepression"),
@@ -985,26 +995,18 @@ function renderImages() {
   const current = activeCase();
   if (!current) return;
   current.images.forEach(normalizeImageMetadata);
-  const visibleImages = current.images.filter(imageMatchesFilters);
+  const orderedImages = [...current.images].sort(compareImagesByClinicalOrder);
+  selectedImageIds = new Set([...selectedImageIds].filter((id) => current.images.some((image) => image.id === id)));
 
   els.imageSelect.innerHTML = current.images.length
     ? current.images.map((image) => `<option value="${image.id}">${escapeHtml(imageCategoryLabel(image.category))} · ${escapeHtml(image.name)}</option>`).join("")
     : `<option value="">暂无影像</option>`;
 
-  els.imageList.innerHTML = visibleImages.length
-    ? visibleImages.map((image) => `
-        <article class="image-row" data-image-id="${image.id}">
-          <input class="image-check" type="checkbox" data-image-check="${image.id}" aria-label="选择 ${escapeHtml(image.name)}">
-          <button class="image-pick ${image.id === (imageEditor.imageId || current.images[0]?.id) ? "active" : ""}" data-pick-image="${image.id}">
-            <img src="${escapeHtml(image.dataUrl)}" alt="">
-            <span>${escapeHtml(image.name)}</span>
-            <em>${escapeHtml(imageCategoryLabel(image.category))} · ${escapeHtml(imageTimepointLabel(image.timepoint))}</em>
-          </button>
-          <button class="image-delete" type="button" data-delete-image="${image.id}" aria-label="删除 ${escapeHtml(image.name)}">删除图像</button>
-        </article>
-      `).join("")
-    : `<p class="helper-text">${current.images.length ? "当前筛选下暂无影像。" : "暂无影像。可批量上传后在左侧统一归类。"}</p>`;
-  if (els.selectAllImages) els.selectAllImages.checked = false;
+  els.imageList.classList.toggle("organizing", imageOrganizeMode);
+  els.imageList.innerHTML = orderedImages.length
+    ? renderImageGroups(orderedImages)
+    : `<p class="helper-text">暂无影像。可先批量上传，之后点“整理”统一归类。</p>`;
+  updateImageOrganizeUi();
 
   const selected = current.images.find((image) => image.id === imageEditor.imageId) || current.images[0];
   if (selected) {
@@ -1019,22 +1021,185 @@ function renderImages() {
   }
 }
 
-function imageMatchesFilters(image) {
-  normalizeImageMetadata(image);
-  const phase = els.imagePhaseFilter?.value || "all";
-  const timepoint = els.imageTimepointFilter?.value || "all";
-  const modality = els.imageModalityFilter?.value || "all";
-  const category = els.imageCategoryFilter?.value || "all";
-  return matchesImageFilter(phase, image.phase, image.category)
-    && matchesImageFilter(timepoint, image.timepoint, image.category)
-    && matchesImageFilter(modality, image.modality, image.category)
-    && matchesImageFilter(category, image.category, image.category);
+function renderImageGroups(images) {
+  return groupImagesForFilmstrip(images).map((stage) => `
+    <section class="image-stage-group">
+      <header>
+        <strong>${escapeHtml(stage.label)}</strong>
+        <span>${stage.count} 张</span>
+      </header>
+      ${stage.groups.map((group) => `
+        <div class="image-type-group">
+          <p>${escapeHtml(group.label)}</p>
+          ${group.images.map(renderImageRow).join("")}
+        </div>
+      `).join("")}
+    </section>
+  `).join("");
 }
 
-function matchesImageFilter(filterValue, imageValue, category = "") {
-  if (!filterValue || filterValue === "all") return true;
-  if (filterValue === "unclassified") return category === "unclassified" || !category;
-  return imageValue === filterValue;
+function renderImageRow(image) {
+  const selected = selectedImageIds.has(image.id);
+  const active = image.id === (imageEditor.imageId || activeCase()?.images?.[0]?.id);
+  return `
+    <article class="image-row ${selected ? "selected" : ""}" data-image-id="${image.id}">
+      <button class="image-select-dot ${selected ? "selected" : ""}" type="button" data-toggle-image-selection="${image.id}" aria-label="选择 ${escapeHtml(image.name)}">${selected ? "✓" : ""}</button>
+      <button class="image-pick ${active ? "active" : ""}" data-pick-image="${image.id}" type="button">
+        <img src="${escapeHtml(image.dataUrl)}" alt="">
+        <span>${escapeHtml(image.name)}</span>
+        <em>${escapeHtml(imageCategoryLabel(image.category))}${image.phase === "followup" ? ` · ${escapeHtml(imageTimepointLabel(image.timepoint))}` : ""}</em>
+      </button>
+    </article>
+  `;
+}
+
+function groupImagesForFilmstrip(images) {
+  const stages = [];
+  images.forEach((image) => {
+    const stageKey = imageStageKey(image);
+    const stageLabel = imageStageLabel(stageKey);
+    const groupKey = imageGroupKey(image, stageKey);
+    const groupLabel = imageGroupLabel(image, stageKey);
+    let stage = stages.find((item) => item.key === stageKey);
+    if (!stage) {
+      stage = { key: stageKey, label: stageLabel, count: 0, groups: [] };
+      stages.push(stage);
+    }
+    let group = stage.groups.find((item) => item.key === groupKey);
+    if (!group) {
+      group = { key: groupKey, label: groupLabel, images: [] };
+      stage.groups.push(group);
+    }
+    group.images.push(image);
+    stage.count += 1;
+  });
+  return stages.sort((a, b) => imageStageOrder(a.key) - imageStageOrder(b.key));
+}
+
+function imageStageKey(image) {
+  normalizeImageMetadata(image);
+  if (image.category === "unclassified" || image.phase === "unclassified") return "unclassified";
+  if (image.phase === "preop") return "preop";
+  if (image.phase === "intraop") return "intraop";
+  if (image.phase === "postop") return "postop-immediate";
+  if (image.phase === "followup") return "followup";
+  return "other";
+}
+
+function imageStageLabel(key) {
+  return {
+    unclassified: "待归类",
+    preop: "术前",
+    intraop: "术中",
+    "postop-immediate": "术后即刻",
+    followup: "随访",
+    other: "其他"
+  }[key] || "其他";
+}
+
+function imageStageOrder(key) {
+  return {
+    unclassified: 0,
+    preop: 1,
+    intraop: 2,
+    "postop-immediate": 3,
+    followup: 4,
+    other: 5
+  }[key] ?? 9;
+}
+
+function imageGroupKey(image, stageKey) {
+  if (stageKey === "followup") return `${image.timepoint || "followup"}:${image.modality || "other"}`;
+  return image.modality || "other";
+}
+
+function imageGroupLabel(image, stageKey) {
+  const modality = imageModalityLabel(image.modality);
+  if (stageKey === "followup") return `${imageTimepointLabel(image.timepoint)} · ${modality}`;
+  return modality;
+}
+
+function imageModalityLabel(value = "other") {
+  return {
+    xray: "X 线",
+    ct: "CT",
+    fluoro: "透视",
+    appearance: "足部外观",
+    rom: "活动度照片",
+    incision: "切口/软组织照片",
+    photo: "普通照片",
+    other: "其他图片"
+  }[value] || "其他图片";
+}
+
+function compareImagesByClinicalOrder(a, b) {
+  const stageDiff = imageStageOrder(imageStageKey(a)) - imageStageOrder(imageStageKey(b));
+  if (stageDiff) return stageDiff;
+  const timeDiff = imageTimepointOrder(a.timepoint) - imageTimepointOrder(b.timepoint);
+  if (timeDiff) return timeDiff;
+  const modalityDiff = imageModalityOrder(a.modality) - imageModalityOrder(b.modality);
+  if (modalityDiff) return modalityDiff;
+  return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+}
+
+function imageTimepointOrder(value = "") {
+  const normalized = String(value || "").trim();
+  const fixed = {
+    "": 0,
+    preop: 0,
+    intraop: 0,
+    "postop-immediate": 0,
+    followup: 50,
+    "4 周": 4,
+    "8 周": 8,
+    "3 月": 12,
+    "6 月": 24,
+    "12 月": 52,
+    "24 月": 104
+  };
+  if (Object.hasOwn(fixed, normalized)) return fixed[normalized];
+  const week = normalized.match(/(\d+(?:\.\d+)?)\s*(周|w|week)/i);
+  if (week) return Number(week[1]);
+  const month = normalized.match(/(\d+(?:\.\d+)?)\s*(月|m|month)/i);
+  if (month) return Number(month[1]) * 4;
+  return 999;
+}
+
+function imageModalityOrder(value = "") {
+  return {
+    xray: 1,
+    ct: 2,
+    fluoro: 3,
+    appearance: 4,
+    rom: 5,
+    incision: 6,
+    photo: 7,
+    other: 8
+  }[value] || 9;
+}
+
+function setImageOrganizeMode(enabled) {
+  imageOrganizeMode = enabled;
+  if (!enabled) selectedImageIds.clear();
+  els.toggleImageOrganize?.classList.toggle("active", imageOrganizeMode);
+  els.toggleImageOrganize.textContent = imageOrganizeMode ? "完成" : "整理";
+  renderImages();
+}
+
+function updateImageOrganizeUi() {
+  if (!els.imageOrganizeBar) return;
+  const count = selectedImageIds.size;
+  els.imageOrganizeBar.classList.toggle("hidden-field", !imageOrganizeMode);
+  els.imageSelectionCount.textContent = `已选 ${count} 张`;
+  els.openImageClassify.disabled = count === 0;
+  els.deleteSelectedImages.disabled = count === 0;
+}
+
+function toggleImageSelection(imageId) {
+  if (selectedImageIds.has(imageId)) selectedImageIds.delete(imageId);
+  else selectedImageIds.add(imageId);
+  updateImageOrganizeUi();
+  renderImages();
 }
 
 function deleteImage(imageId) {
@@ -1063,7 +1228,37 @@ function deleteImage(imageId) {
 }
 
 function checkedImageIds() {
-  return $$("[data-image-check]:checked").map((input) => input.dataset.imageCheck);
+  return [...selectedImageIds];
+}
+
+function deleteSelectedImages() {
+  const current = activeCase();
+  const ids = checkedImageIds();
+  if (!current || !ids.length) {
+    setUploadStatus("请先在整理模式中选择影像");
+    return;
+  }
+  const confirmed = window.confirm(`确定删除选中的 ${ids.length} 张影像吗？已保存的测量记录和测量截图会保留。`);
+  if (!confirmed) return;
+  current.images = current.images.filter((image) => !ids.includes(image.id));
+  if (ids.includes(imageEditor.imageId)) {
+    imageEditor.imageId = current.images[0]?.id || null;
+    imageEditor.img = null;
+    imageEditor.crop = null;
+    measurePoints = [];
+    activeMeasurementType = null;
+  }
+  selectedImageIds.clear();
+  imageOrganizeMode = false;
+  if (els.toggleImageOrganize) {
+    els.toggleImageOrganize.classList.remove("active");
+    els.toggleImageOrganize.textContent = "整理";
+  }
+  current.updatedAt = new Date().toISOString();
+  persist();
+  renderImages();
+  renderMeasurements();
+  setUploadStatus(`已删除 ${ids.length} 张影像`);
 }
 
 function applyBulkImageCategory() {
@@ -1074,14 +1269,29 @@ function applyBulkImageCategory() {
     return;
   }
   const category = els.bulkImageCategory.value;
+  const followupTimepoint = els.followupTimepointInput?.value.trim();
   current.images.forEach((image) => {
-    if (ids.includes(image.id)) applyImageCategory(image, category);
+    if (ids.includes(image.id)) applyImageCategory(image, category, followupTimepoint);
   });
   current.updatedAt = new Date().toISOString();
   persist();
+  selectedImageIds.clear();
+  imageOrganizeMode = false;
+  if (els.toggleImageOrganize) {
+    els.toggleImageOrganize.classList.remove("active");
+    els.toggleImageOrganize.textContent = "整理";
+  }
+  els.imageClassifyDialog?.close();
   renderImages();
   renderMeasurements();
   setUploadStatus(`已将 ${ids.length} 张影像归类为：${imageCategoryLabel(category)}`);
+}
+
+function syncFollowupTimepointUi() {
+  const category = els.bulkImageCategory?.value || "";
+  const isFollowup = imageCategoryMetadata(category).phase === "followup";
+  els.followupTimepointWrap?.classList.toggle("hidden-field", !isFollowup);
+  if (!isFollowup && els.followupTimepointInput) els.followupTimepointInput.value = "";
 }
 
 function imageCategoryOptions(selected = "unclassified") {
@@ -1176,13 +1386,13 @@ function imageCategoryMetadata(category = "unclassified") {
   }[normalized] || { phase: "", modality: "other", timepoint: "", source: "upload" };
 }
 
-function applyImageCategory(image, category) {
+function applyImageCategory(image, category, followupTimepoint = "") {
   const normalized = normalizeImageCategory(category);
   const metadata = imageCategoryMetadata(normalized);
   image.category = normalized;
   image.phase = metadata.phase;
   image.modality = metadata.modality;
-  image.timepoint = metadata.timepoint;
+  image.timepoint = metadata.phase === "followup" ? (followupTimepoint || metadata.timepoint) : metadata.timepoint;
   image.source = metadata.source;
 }
 
@@ -1223,24 +1433,20 @@ function activeMeasurementView() {
 function measurementCategoriesForView(view = activeMeasurementView()) {
   return {
     lateral: ["preop-xray", "intraop-xray", "intraop-fluoro", "postop-xray", "followup-xray", "preop-lateral-xray", "postop-lateral-xray"],
-    axial: ["preop-xray", "intraop-xray", "intraop-fluoro", "postop-xray", "followup-xray", "preop-ct", "postop-ct", "followup-ct", "preop-axial-xray", "postop-axial-xray"],
-    ct: ["preop-ct", "postop-ct", "followup-ct"],
-    distance: ["preop-xray", "intraop-xray", "intraop-fluoro", "postop-xray", "followup-xray", "preop-ct", "postop-ct", "followup-ct"]
+    axial: ["preop-xray", "intraop-xray", "intraop-fluoro", "postop-xray", "followup-xray", "preop-ct", "postop-ct", "followup-ct", "preop-axial-xray", "postop-axial-xray"]
   }[view] || [];
 }
 
 function measurementHelpText(view = activeMeasurementView()) {
+  if (!activeMeasurementType) return "默认是阅片模式。点击某个测量项目后，再在中间影像上依次点 4 个点，保存后自动回到阅片模式。";
   return {
     lateral: "跟骨侧位用于 Böhler 角和 Gissane 角：依次点击 4 个点，两点一条线，系统计算两线夹角。",
-    axial: "跟骨轴位或 CT 可用于内外翻/轴线测量：资料缺失时允许选择可用的 X 线、透视或 CT 图像，依次点击 4 个点形成两条参考线。",
-    ct: "CT 层面用于记录关节面塌陷程度、台阶和间隙：可点击 2 个点画辅助线，但最终请按 CT 标尺或工作站读数填写毫米值。",
-    distance: "台阶或间隙测量：点击 2 个点形成测量线，系统先保存像素距离和带标记截图，后续可增加标尺换算。"
-  }[view] || "";
+    axial: "跟骨轴位或 CT 可用于内外翻/轴线测量：资料缺失时允许选择可用的 X 线、透视或 CT 图像，依次点击 4 个点形成两条参考线。"
+  }[view] || "依次点击 4 个点，两点一条线，系统计算两线夹角。";
 }
 
 function isDistanceMeasurementMode(type = "") {
-  const view = activeMeasurementView();
-  return view === "ct" || view === "distance" || measurementDistanceTypes.includes(type);
+  return measurementDistanceTypes.includes(type);
 }
 
 function measurementImagesForView(current, view = activeMeasurementView()) {
@@ -1266,10 +1472,13 @@ function syncMeasurementUi(current = activeCase()) {
   els.measurementButtons.forEach((button) => {
     const views = (button.dataset.measurementView || "").split(" ");
     button.classList.toggle("hidden-field", !views.includes(view));
+    button.classList.toggle("active", button.dataset.startMeasurement === activeMeasurementType);
   });
-  els.ctMeasurementPanel.classList.toggle("hidden-field", view !== "ct");
-  els.measurementReadoutLabel.textContent = isDistanceMeasurementMode() ? "当前距离" : "当前角度";
+  els.ctMeasurementPanel?.classList.toggle("hidden-field", true);
+  els.measurementReadoutLabel.textContent = activeMeasurementType ? `当前测量：${labelForMeasurement(activeMeasurementType)}` : "阅片模式";
   els.measurementHelp.textContent = measurementHelpText(view);
+  els.saveActiveMeasurement.disabled = !activeMeasurementType;
+  els.exitMeasurementMode.disabled = !activeMeasurementType;
 }
 
 function renderMeasurements() {
@@ -2451,13 +2660,25 @@ function wireEvents() {
     renderImages();
     renderMeasurements();
   });
-  [els.imagePhaseFilter, els.imageTimepointFilter, els.imageModalityFilter, els.imageCategoryFilter].forEach((filter) => filter?.addEventListener("change", () => {
-    renderImages();
-  }));
+  els.toggleImageOrganize?.addEventListener("click", () => setImageOrganizeMode(!imageOrganizeMode));
+  els.cancelImageOrganize?.addEventListener("click", () => setImageOrganizeMode(false));
+  els.openImageClassify?.addEventListener("click", () => {
+    if (!selectedImageIds.size) {
+      setUploadStatus("请先选择要归类的影像");
+      return;
+    }
+    syncFollowupTimepointUi();
+    els.imageClassifyDialog?.showModal();
+  });
+  els.closeImageClassify?.addEventListener("click", () => els.imageClassifyDialog?.close());
+  els.bulkImageCategory?.addEventListener("change", syncFollowupTimepointUi);
+  els.deleteSelectedImages?.addEventListener("click", deleteSelectedImages);
   els.imageList.addEventListener("click", (event) => {
-    const deleteButton = event.target.closest("[data-delete-image]");
-    if (deleteButton) {
-      deleteImage(deleteButton.dataset.deleteImage);
+    const selectionToggle = event.target.closest("[data-toggle-image-selection]");
+    if (selectionToggle) {
+      imageEditor.imageId = selectionToggle.dataset.toggleImageSelection;
+      imageEditor.img = null;
+      toggleImageSelection(selectionToggle.dataset.toggleImageSelection);
       return;
     }
     const pick = event.target.closest("[data-pick-image]");
@@ -2467,13 +2688,13 @@ function wireEvents() {
     perspectiveMode = false;
     perspectivePoints = [];
     measurePoints = [];
+    activeMeasurementType = null;
+    if (imageOrganizeMode) {
+      if (selectedImageIds.has(pick.dataset.pickImage)) selectedImageIds.delete(pick.dataset.pickImage);
+      else selectedImageIds.add(pick.dataset.pickImage);
+    }
     renderImages();
     renderMeasurements();
-  });
-  els.selectAllImages.addEventListener("change", () => {
-    $$("[data-image-check]").forEach((input) => {
-      input.checked = els.selectAllImages.checked;
-    });
   });
 
   els.applyBulkImageCategory.addEventListener("click", applyBulkImageCategory);
@@ -2525,7 +2746,14 @@ function wireEvents() {
 
   els.perspectiveMode.addEventListener("click", () => {
     perspectiveMode = !perspectiveMode;
-    if (perspectiveMode) ensurePerspectivePoints();
+    if (perspectiveMode) {
+      gestureAdjustMode = false;
+      maskMode = false;
+      if (els.gestureAdjustMode) els.gestureAdjustMode.checked = false;
+      if (els.maskMode) els.maskMode.checked = false;
+      activeMeasurementType = null;
+      ensurePerspectivePoints();
+    }
     els.perspectiveMode.classList.toggle("active", perspectiveMode);
     drawEditor();
   });
@@ -2552,6 +2780,7 @@ function wireEvents() {
 
   els.measurementView.addEventListener("change", () => {
     measurePoints = [];
+    activeMeasurementType = null;
     syncMeasurementUi();
     const image = selectedImage();
     if (image) loadEditorImage(image);
@@ -2563,12 +2792,13 @@ function wireEvents() {
     imageEditor.imageId = els.measurementImageSelect.value;
     imageEditor.img = null;
     measurePoints = [];
+    activeMeasurementType = null;
     const image = selectedImage();
     if (image) loadEditorImage(image);
     renderMeasurements();
   });
 
-  els.saveCtDepression.addEventListener("click", saveCtDepression);
+  els.saveCtDepression?.addEventListener("click", saveCtDepression);
 
   els.imageCanvas.addEventListener("pointerdown", handlePerspectivePointerDown);
   els.imageCanvas.addEventListener("pointermove", handlePerspectivePointerMove);
@@ -2576,11 +2806,11 @@ function wireEvents() {
   els.imageCanvas.addEventListener("pointerleave", handlePerspectivePointerUp);
 
   els.measureCanvas.addEventListener("click", (event) => {
-    if (!imageEditor.img || perspectiveMode || maskMode || gestureAdjustMode) return;
+    if (!imageEditor.img || perspectiveMode || maskMode || gestureAdjustMode || !activeMeasurementType) return;
     const rect = els.measureCanvas.getBoundingClientRect();
     const scaleX = els.measureCanvas.width / rect.width;
     const scaleY = els.measureCanvas.height / rect.height;
-    const maxPoints = isDistanceMeasurementMode() ? 2 : 4;
+    const maxPoints = 4;
     if (measurePoints.length >= maxPoints) measurePoints = [];
     measurePoints.push({
       x: (event.clientX - rect.left) * scaleX,
@@ -2595,8 +2825,10 @@ function wireEvents() {
   });
 
   els.measurementButtons.forEach((button) => {
-    button.addEventListener("click", () => saveMeasurement(button.dataset.saveMeasurement));
+    button.addEventListener("click", () => startMeasurement(button.dataset.startMeasurement, button.dataset.measurementView));
   });
+  els.saveActiveMeasurement?.addEventListener("click", () => saveMeasurement(activeMeasurementType));
+  els.exitMeasurementMode?.addEventListener("click", () => exitMeasurementMode());
   els.measurementList.addEventListener("click", (event) => {
     const editButton = event.target.closest("[data-edit-measurement]");
     if (editButton) {
@@ -2872,21 +3104,49 @@ function copyMeasurePoints(limit = measurePoints.length) {
   return measurePoints.slice(0, limit).map((point) => ({ x: point.x, y: point.y }));
 }
 
+function startMeasurement(type, views = "") {
+  if (!type) return;
+  activeMeasurementType = type;
+  const allowedViews = views.split(" ").filter(Boolean);
+  if (allowedViews.length && !allowedViews.includes(activeMeasurementView())) {
+    els.measurementView.value = allowedViews[0];
+  }
+  gestureAdjustMode = false;
+  maskMode = false;
+  perspectiveMode = false;
+  if (els.gestureAdjustMode) els.gestureAdjustMode.checked = false;
+  if (els.maskMode) els.maskMode.checked = false;
+  els.perspectiveMode?.classList.remove("active");
+  measurePoints = [];
+  syncMeasurementUi();
+  drawMeasure();
+}
+
+function exitMeasurementMode({ keepPoints = false } = {}) {
+  activeMeasurementType = null;
+  editingMeasurementId = null;
+  if (!keepPoints) measurePoints = [];
+  gestureAdjustMode = true;
+  if (els.gestureAdjustMode) els.gestureAdjustMode.checked = true;
+  syncMeasurementUi();
+  drawMeasure();
+}
+
 function saveMeasurement(type) {
   const current = activeCase();
   const image = selectedImage();
   if (!current || !image || !type) return;
-  const isDistance = measurementDistanceTypes.includes(type) || activeMeasurementView() === "distance";
-  const angle = isDistance ? null : currentAngle();
-  const valuePx = isDistance ? currentDistance() : null;
-  if (isDistance && !valuePx) return;
-  if (!isDistance && !angle) return;
+  const angle = currentAngle();
+  if (!angle || measurePoints.length < 4) {
+    setUploadStatus("请先完成 4 个测量点");
+    return;
+  }
   const snapshotDataUrl = measurementSnapshotDataUrl();
   const payload = {
     type,
     view: activeMeasurementView(),
-    ...(isDistance ? { valuePx } : { angle }),
-    points: copyMeasurePoints(isDistance ? 2 : 4),
+    angle,
+    points: copyMeasurePoints(4),
     snapshotDataUrl,
     imageId: image.id,
     imageName: image.name,
@@ -2906,9 +3166,10 @@ function saveMeasurement(type) {
   }
   current.updatedAt = new Date().toISOString();
   persist();
-  measurePoints = [];
+  activeMeasurementType = null;
   editingMeasurementId = null;
   renderMeasurements();
+  exitMeasurementMode();
   drawMeasure();
 }
 
@@ -2951,9 +3212,7 @@ function saveCtDepression() {
 }
 
 function viewForMeasurementRecord(record) {
-  if (record.view) return record.view;
-  if (record.type === "posterior-facet-depression") return "ct";
-  if (measurementDistanceTypes.includes(record.type)) return "distance";
+  if (record.view === "axial") return "axial";
   if (record.type === "hindfoot-varus") return "axial";
   return "lateral";
 }
@@ -2963,15 +3222,15 @@ function editMeasurement(id) {
   const record = current?.measurements.find((item) => item.id === id);
   if (!current || !record) return;
   editingMeasurementId = id;
+  activeMeasurementType = ["bohler", "gissane", "hindfoot-varus", "custom"].includes(record.type) ? record.type : "custom";
   els.measurementView.value = viewForMeasurementRecord(record);
   imageEditor.imageId = record.imageId || imageEditor.imageId;
   imageEditor.img = null;
   measurePoints = Array.isArray(record.points)
     ? record.points.map((point) => ({ x: Number(point.x), y: Number(point.y) }))
     : [];
-  if (record.type === "posterior-facet-depression") {
-    els.ctDepressionValue.value = record.valueMm ?? "";
-  }
+  gestureAdjustMode = false;
+  if (els.gestureAdjustMode) els.gestureAdjustMode.checked = false;
   syncMeasurementUi(current);
   const image = selectedImage();
   if (image) loadEditorImage(image);
@@ -3076,6 +3335,7 @@ function addComment() {
   const current = activeCase();
   const body = els.commentBody.value.trim();
   if (!current || !body) return;
+  if (current.privacyLevel !== "private" && !privacyReviewAllowsDiscussion(current, body)) return;
   current.comments.unshift({
     id: makeId(),
     body,
@@ -3088,6 +3348,49 @@ function addComment() {
   persist();
   renderCaseList();
   renderComments();
+}
+
+function privacyReviewAllowsDiscussion(current, draftText = "") {
+  const review = runMediumPrivacyReview(current, draftText);
+  if (review.level === "block") {
+    alert(`发布前隐私审核未通过：${review.messages.join("；")}。请先处理敏感信息。`);
+    return false;
+  }
+  if (review.level === "confirm") {
+    return window.confirm(`系统提示可能存在隐私风险：${review.messages.join("；")}。如果你已完成脱敏，可以继续发布；否则请先返回处理。`);
+  }
+  return true;
+}
+
+function runMediumPrivacyReview(current, draftText = "") {
+  const text = [
+    current.code,
+    current.mechanism,
+    current.combinedInjury,
+    current.threeStepNotes,
+    draftText,
+    ...(current.images || []).map((image) => image.name)
+  ].filter(Boolean).join(" ");
+  const messages = [];
+  const blockPatterns = [
+    [/1[3-9]\d{9}/, "疑似电话号码"],
+    [/\d{17}[\dXx]/, "疑似身份证号"],
+    [/(姓名|患者|身份证|手机号|电话|住院号|病历号|检查号|二维码)[:：]?\S{1,18}/, "疑似患者身份字段"]
+  ];
+  blockPatterns.forEach(([pattern, message]) => {
+    if (pattern.test(text)) messages.push(message);
+  });
+  if (messages.length) return { level: "block", messages };
+  const confirmMessages = [];
+  if (!current.privacyChecks?.hideName) confirmMessages.push("未勾选已移除姓名/住院号");
+  if (!current.privacyChecks?.hideHospital) confirmMessages.push("未勾选已遮挡医院/二维码/检查号");
+  if (!current.privacyChecks?.hideMetadata) confirmMessages.push("未确认上传图像已重新编码");
+  if (/(患者|住院|检查|医院|PACS|ID|MRN|条码|barcode|qrcode)/i.test(text)) {
+    confirmMessages.push("文本或影像名称中出现敏感关键词");
+  }
+  return confirmMessages.length
+    ? { level: "confirm", messages: confirmMessages }
+    : { level: "pass", messages: [] };
 }
 
 function exportData() {
