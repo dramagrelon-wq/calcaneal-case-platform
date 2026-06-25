@@ -287,6 +287,7 @@ const els = {
   autoCrop: $("#autoCrop"),
   squareCrop: $("#squareCrop"),
   perspectiveMode: $("#perspectiveMode"),
+  perspectiveHelp: $("#perspectiveHelp"),
   applyPerspective: $("#applyPerspective"),
   resetPerspective: $("#resetPerspective"),
   rotateImage: $("#rotateImage"),
@@ -1273,7 +1274,7 @@ function deleteImage(imageId) {
     imageEditor.img = null;
     imageEditor.crop = null;
     measurePoints = [];
-    perspectiveMode = false;
+    setPerspectiveMode(false);
     perspectivePoints = [];
   }
   current.updatedAt = new Date().toISOString();
@@ -1325,11 +1326,22 @@ function applyBulkImageCategory() {
     return;
   }
   const category = els.bulkImageCategory.value;
+  if (!category || category === "unclassified") {
+    setUploadStatus("请先选择一个具体影像分类");
+    return;
+  }
   const followupTimepoint = els.followupTimepointInput?.value.trim();
+  const changedImages = [];
   current.images.forEach((image) => {
-    if (ids.includes(image.id)) applyImageCategory(image, category, followupTimepoint);
+    if (!ids.includes(image.id)) return;
+    applyImageCategory(image, category, followupTimepoint);
+    changedImages.push(image);
   });
   current.updatedAt = new Date().toISOString();
+  if (changedImages[0]) {
+    imageEditor.imageId = changedImages[0].id;
+    imageEditor.img = null;
+  }
   persist();
   selectedImageIds.clear();
   imageOrganizeMode = false;
@@ -1337,10 +1349,24 @@ function applyBulkImageCategory() {
     els.toggleImageOrganize.classList.remove("active");
     els.toggleImageOrganize.textContent = "整理";
   }
-  els.imageClassifyDialog?.close();
+  if (els.bulkImageCategory) els.bulkImageCategory.value = "unclassified";
+  if (els.followupTimepointInput) els.followupTimepointInput.value = "";
+  syncFollowupTimepointUi();
+  closeDialog(els.imageClassifyDialog);
   renderImages();
   renderMeasurements();
   setUploadStatus(`已将 ${ids.length} 张影像归类为：${imageCategoryLabel(category)}`);
+}
+
+function closeDialog(dialog) {
+  if (!dialog || !dialog.open) return;
+  dialog.close();
+}
+
+function setPerspectiveMode(value) {
+  perspectiveMode = Boolean(value);
+  els.perspectiveMode?.classList.toggle("active", perspectiveMode);
+  els.perspectiveHelp?.classList.toggle("hidden-field", !perspectiveMode);
 }
 
 function syncFollowupTimepointUi() {
@@ -2533,7 +2559,7 @@ function applyPerspectiveCorrection() {
   }
 
   outputCtx.putImageData(outputData, 0, 0);
-  perspectiveMode = false;
+  setPerspectiveMode(false);
   perspectivePoints = [];
   commitImageVersion(record, output.toDataURL("image/png", 0.92), "矫正");
 }
@@ -2845,7 +2871,7 @@ function wireEvents() {
     syncFollowupTimepointUi();
     els.imageClassifyDialog?.showModal();
   });
-  els.closeImageClassify?.addEventListener("click", () => els.imageClassifyDialog?.close());
+  els.closeImageClassify?.addEventListener("click", () => closeDialog(els.imageClassifyDialog));
   els.bulkImageCategory?.addEventListener("change", syncFollowupTimepointUi);
   els.deleteSelectedImages?.addEventListener("click", deleteSelectedImages);
   els.imageList.addEventListener("click", (event) => {
@@ -2861,7 +2887,7 @@ function wireEvents() {
     imageEditor.imageId = pick.dataset.pickImage;
     imageEditor.img = null;
     resetPendingMasks();
-    perspectiveMode = false;
+    setPerspectiveMode(false);
     perspectivePoints = [];
     measurePoints = [];
     activeMeasurementType = null;
@@ -2877,9 +2903,8 @@ function wireEvents() {
   els.maskMode?.addEventListener("change", () => {
     maskMode = els.maskMode.checked;
     if (maskMode) {
-      perspectiveMode = false;
+      setPerspectiveMode(false);
       gestureAdjustMode = false;
-      els.perspectiveMode.classList.remove("active");
       if (els.gestureAdjustMode) els.gestureAdjustMode.checked = false;
       drawEditor();
     }
@@ -2890,9 +2915,8 @@ function wireEvents() {
   els.gestureAdjustMode?.addEventListener("change", () => {
     gestureAdjustMode = els.gestureAdjustMode.checked;
     if (gestureAdjustMode) {
-      perspectiveMode = false;
+      setPerspectiveMode(false);
       maskMode = false;
-      els.perspectiveMode.classList.remove("active");
       if (els.maskMode) els.maskMode.checked = false;
       drawEditor();
     }
@@ -2924,7 +2948,7 @@ function wireEvents() {
   });
 
   els.perspectiveMode.addEventListener("click", () => {
-    perspectiveMode = !perspectiveMode;
+    setPerspectiveMode(!perspectiveMode);
     if (perspectiveMode) {
       gestureAdjustMode = false;
       maskMode = false;
@@ -2933,7 +2957,6 @@ function wireEvents() {
       activeMeasurementType = null;
       ensurePerspectivePoints();
     }
-    els.perspectiveMode.classList.toggle("active", perspectiveMode);
     drawEditor();
   });
 
@@ -3373,10 +3396,9 @@ function startMeasurement(type, views = "") {
   }
   gestureAdjustMode = false;
   maskMode = false;
-  perspectiveMode = false;
+  setPerspectiveMode(false);
   if (els.gestureAdjustMode) els.gestureAdjustMode.checked = false;
   if (els.maskMode) els.maskMode.checked = false;
-  els.perspectiveMode?.classList.remove("active");
   measurePoints = [];
   syncMeasurementUi();
   drawMeasure();
