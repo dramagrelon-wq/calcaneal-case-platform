@@ -27,12 +27,17 @@ let activeScoreDraft = null;
 let imageOrganizeMode = false;
 let selectedImageIds = new Set();
 let activeMeasurementType = null;
+let draggedMeasurePointIndex = null;
+let suppressNextMeasureClick = false;
 let perspectiveMode = false;
 let perspectivePoints = [];
 let draggedPerspectivePoint = null;
 let maskMode = false;
 let maskStartPoint = null;
 let maskPreviewPoint = null;
+let maskRectangles = [];
+let activeMaskRectangleId = null;
+let maskDragState = null;
 let gestureAdjustMode = true;
 let gestureStart = null;
 let introTimer = null;
@@ -66,10 +71,9 @@ const injuryLabels = {
   other: "其他"
 };
 
-const softTissueKeys = ["bloodBlister", "blister", "openWound", "swelling", "compartment"];
+const softTissueKeys = ["swelling", "blister", "openWound", "compartment"];
 const softTissueLabels = {
-  bloodBlister: "血泡",
-  blister: "水泡",
+  blister: "水泡、血泡",
   openWound: "开放性骨折",
   swelling: "明显肿胀",
   compartment: "骨筋膜室综合征"
@@ -201,6 +205,12 @@ const els = {
     ageBand: $("#ageBand"),
     sex: $("#sex"),
     side: $("#side"),
+    admissionDate: $("#admissionDate"),
+    surgeryDate: $("#surgeryDate"),
+    dischargeDate: $("#dischargeDate"),
+    surgeryWaitDays: $("#surgeryWaitDays"),
+    hospitalStayDays: $("#hospitalStayDays"),
+    surgeryMethod: $("#surgeryMethod"),
     mechanismType: $("#mechanismType"),
     mechanismOther: $("#mechanismOther"),
     mechanismOtherWrap: $("#mechanismOtherWrap"),
@@ -212,10 +222,8 @@ const els = {
     injuryPelvisDetail: $("#injuryPelvisDetail"),
     injuryFoot: $("#injuryFoot"),
     injuryFootDetail: $("#injuryFootDetail"),
-    injurySoftTissue: $("#injurySoftTissue"),
     injurySoftTissueDetail: $("#injurySoftTissueDetail"),
     softTissueBlister: $("#softTissueBlister"),
-    softTissueBloodBlister: $("#softTissueBloodBlister"),
     softTissueSwelling: $("#softTissueSwelling"),
     softTissueOpenWound: $("#softTissueOpenWound"),
     softTissueCompartment: $("#softTissueCompartment"),
@@ -231,10 +239,7 @@ const els = {
     comorbDiabetes: $("#comorbDiabetes"),
     comorbSmoking: $("#comorbSmoking"),
     comorbFootHistory: $("#comorbFootHistory"),
-    hideName: $("#hideName"),
-    hideDates: $("#hideDates"),
-    hideHospital: $("#hideHospital"),
-    hideMetadata: $("#hideMetadata"),
+    privacyConfirmed: $("#privacyConfirmed"),
     adminApplicationReason: $("#adminApplicationReason"),
     adminTeachingProfile: $("#adminTeachingProfile"),
     isMulticenterCase: $("#isMulticenterCase"),
@@ -293,6 +298,9 @@ const els = {
   saveImage: $("#saveImage"),
   maskMode: $("#maskMode"),
   maskFill: $("#maskFill"),
+  applyMaskRectangles: $("#applyMaskRectangles"),
+  deleteMaskRectangle: $("#deleteMaskRectangle"),
+  clearMaskRectangles: $("#clearMaskRectangles"),
   captureHideReflection: $("#captureHideReflection"),
   captureHidePatientInfo: $("#captureHidePatientInfo"),
   captureReadyForClassify: $("#captureReadyForClassify"),
@@ -309,6 +317,7 @@ const els = {
   resetPoints: $("#resetPoints"),
   measurementButtons: $$("[data-start-measurement]"),
   saveActiveMeasurement: $("#saveActiveMeasurement"),
+  deleteActiveMeasurement: $("#deleteActiveMeasurement"),
   exitMeasurementMode: $("#exitMeasurementMode"),
   ctMeasurementPanel: $("#ctMeasurementPanel"),
   ctDepressionValue: $("#ctDepressionValue"),
@@ -569,23 +578,52 @@ function updateMechanismFromFields() {
   setMechanismOtherVisibility();
 }
 
+function daysBetweenDates(startValue, endValue) {
+  if (!startValue || !endValue) return "";
+  const start = new Date(`${startValue}T00:00:00`);
+  const end = new Date(`${endValue}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return "";
+  return String(Math.round((end - start) / 86400000));
+}
+
+function updateClinicalTimelineFromFields({ autoCalculate = true } = {}) {
+  const admissionDate = els.fields.admissionDate.value;
+  const surgeryDate = els.fields.surgeryDate.value;
+  const dischargeDate = els.fields.dischargeDate.value;
+  if (autoCalculate) {
+    const waitDays = daysBetweenDates(admissionDate, surgeryDate);
+    const stayDays = daysBetweenDates(admissionDate, dischargeDate);
+    if (waitDays) els.fields.surgeryWaitDays.value = waitDays;
+    if (stayDays) els.fields.hospitalStayDays.value = stayDays;
+  }
+  updateCase({
+    admissionDate,
+    surgeryDate,
+    dischargeDate,
+    surgeryWaitDays: els.fields.surgeryWaitDays.value,
+    hospitalStayDays: els.fields.hospitalStayDays.value,
+    surgeryMethod: els.fields.surgeryMethod.value
+  });
+}
+
 function updateCombinedInjuryFromFields() {
   const combinedInjuries = {};
   injuryKeys.forEach((key) => {
     const checkbox = els.fields[`injury${injuryFieldName(key)}`];
     const detail = els.fields[`injury${injuryFieldName(key)}Detail`];
+    const softFindings = key === "softTissue"
+      ? {
+          swelling: els.fields.softTissueSwelling.checked,
+          blister: els.fields.softTissueBlister.checked,
+          openWound: els.fields.softTissueOpenWound.checked,
+          compartment: els.fields.softTissueCompartment.checked
+        }
+      : {};
+    const softChecked = key === "softTissue" && (detail.value.trim() || Object.values(softFindings).some(Boolean));
     combinedInjuries[key] = {
-      checked: Boolean(checkbox.checked),
+      checked: key === "softTissue" ? Boolean(softChecked) : Boolean(checkbox.checked),
       detail: detail.value.trim(),
-      findings: key === "softTissue"
-        ? {
-            blister: els.fields.softTissueBlister.checked,
-            bloodBlister: els.fields.softTissueBloodBlister.checked,
-            swelling: els.fields.softTissueSwelling.checked,
-            openWound: els.fields.softTissueOpenWound.checked,
-            compartment: els.fields.softTissueCompartment.checked
-          }
-        : {}
+      findings: softFindings
     };
   });
   updateCase({
@@ -623,6 +661,12 @@ function createCase(seed = {}) {
     ageBand: exactAgeValue(seed.age ?? seed.ageBand),
     sex: seed.sex || "",
     side: seed.side || "",
+    admissionDate: seed.admissionDate || "",
+    surgeryDate: seed.surgeryDate || "",
+    dischargeDate: seed.dischargeDate || "",
+    surgeryWaitDays: seed.surgeryWaitDays || "",
+    hospitalStayDays: seed.hospitalStayDays || "",
+    surgeryMethod: seed.surgeryMethod || "",
     mechanismType,
     mechanismOther,
     mechanism: mechanismType === "其他" ? mechanismOther : mechanismType,
@@ -637,10 +681,7 @@ function createCase(seed = {}) {
     },
     threeStepNotes: seed.threeStepNotes || "",
     privacyChecks: {
-      hideName: false,
-      hideDates: false,
-      hideHospital: false,
-      hideMetadata: false,
+      deidentified: false,
       ...(seed.privacyChecks || {})
     },
     research: normalizeResearch(seed.research),
@@ -932,6 +973,12 @@ function renderActiveCase() {
   els.fields.ageBand.value = current.ageBand;
   els.fields.sex.value = current.sex;
   els.fields.side.value = current.side;
+  els.fields.admissionDate.value = current.admissionDate || "";
+  els.fields.surgeryDate.value = current.surgeryDate || "";
+  els.fields.dischargeDate.value = current.dischargeDate || "";
+  els.fields.surgeryWaitDays.value = current.surgeryWaitDays || "";
+  els.fields.hospitalStayDays.value = current.hospitalStayDays || "";
+  els.fields.surgeryMethod.value = current.surgeryMethod || "";
   current.mechanismType ||= mechanismTypeFromValue(current.mechanism);
   current.mechanismOther ||= current.mechanismType === "其他" ? current.mechanism || "" : "";
   els.fields.mechanismType.value = current.mechanismType;
@@ -940,12 +987,13 @@ function renderActiveCase() {
   current.combinedInjuries = normalizeCombinedInjuries(current.combinedInjuries, current.combinedInjury);
   injuryKeys.forEach((key) => {
     const fieldName = injuryFieldName(key);
-    els.fields[`injury${fieldName}`].checked = Boolean(current.combinedInjuries[key]?.checked);
+    if (key !== "softTissue") {
+      els.fields[`injury${fieldName}`].checked = Boolean(current.combinedInjuries[key]?.checked);
+    }
     els.fields[`injury${fieldName}Detail`].value = current.combinedInjuries[key]?.detail || "";
   });
   const softFindings = current.combinedInjuries.softTissue?.findings || {};
-  els.fields.softTissueBlister.checked = Boolean(softFindings.blister);
-  els.fields.softTissueBloodBlister.checked = Boolean(softFindings.bloodBlister);
+  els.fields.softTissueBlister.checked = Boolean(softFindings.blister || softFindings.bloodBlister);
   els.fields.softTissueSwelling.checked = Boolean(softFindings.swelling);
   els.fields.softTissueOpenWound.checked = Boolean(softFindings.openWound);
   els.fields.softTissueCompartment.checked = Boolean(softFindings.compartment);
@@ -961,10 +1009,7 @@ function renderActiveCase() {
   els.fields.comorbDiabetes.checked = Boolean(current.comorbidities.diabetes);
   els.fields.comorbSmoking.checked = Boolean(current.comorbidities.smoking);
   els.fields.comorbFootHistory.checked = Boolean(current.comorbidities.footHistory);
-  els.fields.hideName.checked = current.privacyChecks.hideName;
-  els.fields.hideDates.checked = current.privacyChecks.hideDates;
-  els.fields.hideHospital.checked = current.privacyChecks.hideHospital;
-  els.fields.hideMetadata.checked = current.privacyChecks.hideMetadata;
+  els.fields.privacyConfirmed.checked = Boolean(current.privacyChecks.deidentified);
   els.fields.adminApplicationReason.value = current.adminApplication?.reason || "";
   els.fields.adminTeachingProfile.value = current.adminApplication?.teachingProfile || "";
   current.research = normalizeResearch(current.research);
@@ -985,7 +1030,10 @@ function renderActiveCase() {
   els.fields.zwippAnterolateral.checked = Boolean(current.classification.zwippAnterolateral);
   els.fields.zwippAnteromedial.checked = Boolean(current.classification.zwippAnteromedial);
   current.followupPlan ||= {};
-  els.defaultFollowupInterval.value = current.followupPlan.defaultInterval || "2w-6w-3m-6m-12m";
+  const defaultInterval = current.followupPlan.defaultInterval || "immediate-4w-8w-3m-6m-12m-24m";
+  els.defaultFollowupInterval.value = ["immediate-4w-8w-3m-6m-12m-24m", "4w-8w-3m-6m-12m", "custom"].includes(defaultInterval)
+    ? defaultInterval
+    : "immediate-4w-8w-3m-6m-12m-24m";
   els.followupStatus.value = current.followupPlan.status || "ongoing";
   els.finalOutcome.value = current.followupPlan.finalOutcome || "";
   syncVisibilityUi(current.privacyLevel);
@@ -1019,6 +1067,14 @@ function renderImages() {
       clearCanvas(els.measureCanvas, "上传并选择影像后可进行角度测量");
     }
   }
+}
+
+function resetPendingMasks() {
+  maskRectangles = [];
+  activeMaskRectangleId = null;
+  maskDragState = null;
+  maskStartPoint = null;
+  maskPreviewPoint = null;
 }
 
 function renderImageGroups(images) {
@@ -1355,8 +1411,8 @@ function imageTimepointLabel(value = "") {
     preop: "术前",
     intraop: "术中",
     "postop-immediate": "术后即刻",
-    "postop-2w": "术后 2 周",
-    "postop-6w": "术后 6 周",
+    "postop-4w": "术后 4 周",
+    "postop-8w": "术后 8 周",
     "postop-3m": "术后 3 个月",
     "postop-6m": "术后 6 个月",
     "postop-12m": "术后 12 个月",
@@ -1478,6 +1534,7 @@ function syncMeasurementUi(current = activeCase()) {
   els.measurementReadoutLabel.textContent = activeMeasurementType ? `当前测量：${labelForMeasurement(activeMeasurementType)}` : "阅片模式";
   els.measurementHelp.textContent = measurementHelpText(view);
   els.saveActiveMeasurement.disabled = !activeMeasurementType;
+  els.deleteActiveMeasurement.disabled = !activeMeasurementType && !editingMeasurementId;
   els.exitMeasurementMode.disabled = !activeMeasurementType;
 }
 
@@ -1804,6 +1861,7 @@ function drawEditor() {
   }
   drawProcessedImage(canvas);
   if (perspectiveMode) drawPerspectiveOverlay(canvas);
+  if (maskMode) drawMaskRectanglesOverlay(canvas);
 }
 
 function drawMeasure() {
@@ -1814,6 +1872,7 @@ function drawMeasure() {
   }
   drawProcessedImage(canvas);
   drawMeasureOverlay(canvas);
+  if (maskMode) drawMaskRectanglesOverlay(canvas);
 }
 
 function drawProcessedImage(canvas) {
@@ -1901,6 +1960,109 @@ function drawMaskOverlay(canvas, start, end) {
   ctx.fillRect(x, y, width, height);
   ctx.strokeRect(x, y, width, height);
   ctx.restore();
+}
+
+function drawMaskRectanglesOverlay(canvas) {
+  if (!maskRectangles.length) return;
+  const ctx = canvas.getContext("2d");
+  ctx.save();
+  maskRectangles.forEach((rect) => {
+    const active = rect.id === activeMaskRectangleId;
+    ctx.fillStyle = "rgba(5, 8, 7, 0.55)";
+    ctx.strokeStyle = active ? "#f7d154" : "rgba(247, 209, 84, 0.58)";
+    ctx.lineWidth = active ? 3 : 2;
+    ctx.setLineDash(active ? [] : [7, 5]);
+    ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+    ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+    if (active) {
+      ctx.setLineDash([]);
+      maskHandlePoints(rect).forEach((point) => {
+        ctx.fillStyle = "#f7d154";
+        ctx.fillRect(point.x - 5, point.y - 5, 10, 10);
+      });
+    }
+  });
+  ctx.restore();
+}
+
+function maskHandlePoints(rect) {
+  return [
+    { key: "nw", x: rect.x, y: rect.y },
+    { key: "ne", x: rect.x + rect.width, y: rect.y },
+    { key: "sw", x: rect.x, y: rect.y + rect.height },
+    { key: "se", x: rect.x + rect.width, y: rect.y + rect.height }
+  ];
+}
+
+function maskHitTest(point) {
+  for (const rect of [...maskRectangles].reverse()) {
+    const handle = maskHandlePoints(rect).find((item) => Math.abs(point.x - item.x) <= 12 && Math.abs(point.y - item.y) <= 12);
+    if (handle) return { rect, action: handle.key };
+    if (point.x >= rect.x && point.x <= rect.x + rect.width && point.y >= rect.y && point.y <= rect.y + rect.height) {
+      return { rect, action: "move" };
+    }
+  }
+  return null;
+}
+
+function normalizeMaskRect(rect) {
+  const bounds = imageBounds(els.imageCanvas);
+  let x = rect.x;
+  let y = rect.y;
+  let width = rect.width;
+  let height = rect.height;
+  if (width < 0) {
+    x += width;
+    width = Math.abs(width);
+  }
+  if (height < 0) {
+    y += height;
+    height = Math.abs(height);
+  }
+  x = Math.max(bounds.x, Math.min(bounds.x + bounds.width - width, x));
+  y = Math.max(bounds.y, Math.min(bounds.y + bounds.height - height, y));
+  width = Math.max(1, Math.min(width, bounds.x + bounds.width - x));
+  height = Math.max(1, Math.min(height, bounds.y + bounds.height - y));
+  return { ...rect, x, y, width, height };
+}
+
+function updateMaskDrag(point) {
+  if (!maskDragState) return;
+  const rect = maskRectangles.find((item) => item.id === maskDragState.id);
+  if (!rect) return;
+  const dx = point.x - maskDragState.start.x;
+  const dy = point.y - maskDragState.start.y;
+  const original = maskDragState.original;
+  if (maskDragState.action === "draw") {
+    Object.assign(rect, normalizeMaskRect({
+      ...rect,
+      x: original.x,
+      y: original.y,
+      width: dx,
+      height: dy
+    }));
+  } else if (maskDragState.action === "move") {
+    Object.assign(rect, normalizeMaskRect({
+      ...rect,
+      x: original.x + dx,
+      y: original.y + dy,
+      width: original.width,
+      height: original.height
+    }));
+  } else {
+    const next = { ...original };
+    if (maskDragState.action.includes("n")) {
+      next.y = original.y + dy;
+      next.height = original.height - dy;
+    }
+    if (maskDragState.action.includes("s")) next.height = original.height + dy;
+    if (maskDragState.action.includes("w")) {
+      next.x = original.x + dx;
+      next.width = original.width - dx;
+    }
+    if (maskDragState.action.includes("e")) next.width = original.width + dx;
+    Object.assign(rect, normalizeMaskRect({ ...rect, ...next }));
+  }
 }
 
 function ensurePerspectivePoints() {
@@ -2096,10 +2258,7 @@ function addDemoCase() {
     },
     threeStepNotes: "术前评估后关节面塌陷、跟骨宽度和轴位力线。术中重点记录复位顺序、固定方式和关键透视结果。",
     privacyChecks: {
-      hideName: true,
-      hideDates: true,
-      hideHospital: true,
-      hideMetadata: true
+      deidentified: true
     },
     classification: {
       sanders: "II",
@@ -2118,7 +2277,7 @@ function addDemoCase() {
     followups: [
       {
         id: makeId(),
-        stage: "术后 6 周",
+        stage: "术后 8 周",
         dueDate: "",
         vas: "2",
         functionScore: "76",
@@ -2509,7 +2668,17 @@ function wireEvents() {
     if (!select) return;
     const item = state.cases.find((caseItem) => caseItem.id === select.dataset.casePrivacy);
     if (!item) return;
-    item.privacyLevel = normalizePrivacyLevel(select.value);
+    const nextPrivacy = normalizePrivacyLevel(select.value);
+    if (nextPrivacy !== "private" && item.privacyLevel === "private") {
+      const confirmed = window.confirm("病例即将进入管理员可见、圈内教学或公开范围。请确认已经去除患者姓名、电话、身份证号、住院号、检查号、二维码等可识别信息。");
+      if (!confirmed) {
+        select.value = item.privacyLevel;
+        return;
+      }
+      item.privacyChecks ||= {};
+      item.privacyChecks.deidentified = true;
+    }
+    item.privacyLevel = nextPrivacy;
     item.updatedAt = new Date().toISOString();
     persist();
     if (item.id === state.activeCaseId) {
@@ -2559,14 +2728,22 @@ function wireEvents() {
 
   els.fields.mechanismType.addEventListener("change", updateMechanismFromFields);
   els.fields.mechanismOther.addEventListener("input", updateMechanismFromFields);
+  ["admissionDate", "surgeryDate", "dischargeDate", "surgeryMethod"].forEach((key) => {
+    els.fields[key].addEventListener("change", () => updateClinicalTimelineFromFields());
+  });
+  ["surgeryWaitDays", "hospitalStayDays"].forEach((key) => {
+    els.fields[key].addEventListener("input", () => updateClinicalTimelineFromFields({ autoCalculate: false }));
+  });
 
   injuryKeys.forEach((key) => {
     const fieldName = injuryFieldName(key);
-    els.fields[`injury${fieldName}`].addEventListener("change", updateCombinedInjuryFromFields);
+    if (key !== "softTissue") {
+      els.fields[`injury${fieldName}`].addEventListener("change", updateCombinedInjuryFromFields);
+    }
     els.fields[`injury${fieldName}Detail`].addEventListener("input", updateCombinedInjuryFromFields);
   });
 
-  ["softTissueBlister", "softTissueBloodBlister", "softTissueSwelling", "softTissueOpenWound", "softTissueCompartment"].forEach((key) => {
+  ["softTissueBlister", "softTissueSwelling", "softTissueOpenWound", "softTissueCompartment"].forEach((key) => {
     els.fields[key].addEventListener("change", updateCombinedInjuryFromFields);
   });
 
@@ -2633,9 +2810,7 @@ function wireEvents() {
     rememberResearchFile("credentialFileName", els.credentialFile, els.credentialFileName);
   });
 
-  ["hideName", "hideDates", "hideHospital", "hideMetadata"].forEach((key) => {
-    els.fields[key].addEventListener("change", () => updateNestedCase(`privacyChecks.${key}`, els.fields[key].checked));
-  });
+  els.fields.privacyConfirmed.addEventListener("change", () => updateNestedCase("privacyChecks.deidentified", els.fields.privacyConfirmed.checked));
 
   ["sanders", "essex", "fractureDislocation", "specialClassification", "zwippPosteriorFacet", "zwippMiddleFacet", "zwippCalcaneocuboid"].forEach((key) => {
     els.fields[key].addEventListener("change", () => {
@@ -2685,6 +2860,7 @@ function wireEvents() {
     if (!pick) return;
     imageEditor.imageId = pick.dataset.pickImage;
     imageEditor.img = null;
+    resetPendingMasks();
     perspectiveMode = false;
     perspectivePoints = [];
     measurePoints = [];
@@ -2708,6 +2884,9 @@ function wireEvents() {
       drawEditor();
     }
   });
+  els.applyMaskRectangles?.addEventListener("click", applyMaskRectangles);
+  els.deleteMaskRectangle?.addEventListener("click", deleteActiveMaskRectangle);
+  els.clearMaskRectangles?.addEventListener("click", clearMaskRectangles);
   els.gestureAdjustMode?.addEventListener("change", () => {
     gestureAdjustMode = els.gestureAdjustMode.checked;
     if (gestureAdjustMode) {
@@ -2791,6 +2970,7 @@ function wireEvents() {
   els.measurementImageSelect.addEventListener("change", () => {
     imageEditor.imageId = els.measurementImageSelect.value;
     imageEditor.img = null;
+    resetPendingMasks();
     measurePoints = [];
     activeMeasurementType = null;
     const image = selectedImage();
@@ -2807,15 +2987,19 @@ function wireEvents() {
 
   els.measureCanvas.addEventListener("click", (event) => {
     if (!imageEditor.img || perspectiveMode || maskMode || gestureAdjustMode || !activeMeasurementType) return;
+    if (suppressNextMeasureClick) {
+      suppressNextMeasureClick = false;
+      return;
+    }
     const rect = els.measureCanvas.getBoundingClientRect();
     const scaleX = els.measureCanvas.width / rect.width;
     const scaleY = els.measureCanvas.height / rect.height;
     const maxPoints = 4;
     if (measurePoints.length >= maxPoints) measurePoints = [];
-    measurePoints.push({
+    measurePoints.push(clampToImageBounds({
       x: (event.clientX - rect.left) * scaleX,
       y: (event.clientY - rect.top) * scaleY
-    });
+    }));
     drawMeasure();
   });
 
@@ -2828,6 +3012,7 @@ function wireEvents() {
     button.addEventListener("click", () => startMeasurement(button.dataset.startMeasurement, button.dataset.measurementView));
   });
   els.saveActiveMeasurement?.addEventListener("click", () => saveMeasurement(activeMeasurementType));
+  els.deleteActiveMeasurement?.addEventListener("click", deleteActiveMeasurementRecord);
   els.exitMeasurementMode?.addEventListener("click", () => exitMeasurementMode());
   els.measurementList.addEventListener("click", (event) => {
     const editButton = event.target.closest("[data-edit-measurement]");
@@ -2879,11 +3064,29 @@ function handlePerspectivePointerDown(event) {
   if (!imageEditor.img) return;
   const point = canvasPoint(els.imageCanvas, event);
   if (maskMode) {
-    maskStartPoint = clampToImageBounds(point);
-    maskPreviewPoint = maskStartPoint;
+    const clamped = clampToImageBounds(point);
+    const hit = maskHitTest(clamped);
+    if (hit) {
+      activeMaskRectangleId = hit.rect.id;
+      maskDragState = {
+        id: hit.rect.id,
+        action: hit.action,
+        start: clamped,
+        original: { ...hit.rect }
+      };
+    } else {
+      const rect = { id: makeId(), x: clamped.x, y: clamped.y, width: 1, height: 1 };
+      maskRectangles.push(rect);
+      activeMaskRectangleId = rect.id;
+      maskDragState = {
+        id: rect.id,
+        action: "draw",
+        start: clamped,
+        original: { ...rect }
+      };
+    }
     els.imageCanvas.setPointerCapture?.(event.pointerId);
-    drawEditor();
-    drawMaskOverlay(els.imageCanvas, maskStartPoint, maskPreviewPoint);
+    drawMeasure();
     return;
   }
   if (gestureAdjustMode) {
@@ -2895,6 +3098,14 @@ function handlePerspectivePointerDown(event) {
     els.imageCanvas.setPointerCapture?.(event.pointerId);
     return;
   }
+  if (activeMeasurementType) {
+    const index = measurePoints.findIndex((candidate) => distance(candidate, point) <= 16);
+    if (index >= 0) {
+      draggedMeasurePointIndex = index;
+      els.imageCanvas.setPointerCapture?.(event.pointerId);
+      return;
+    }
+  }
   if (!perspectiveMode) return;
   ensurePerspectivePoints();
   const index = perspectivePoints.findIndex((candidate) => distance(candidate, point) <= 22);
@@ -2905,14 +3116,19 @@ function handlePerspectivePointerDown(event) {
 
 function handlePerspectivePointerMove(event) {
   const point = canvasPoint(els.imageCanvas, event);
-  if (maskStartPoint) {
-    maskPreviewPoint = clampToImageBounds(point);
-    drawEditor();
-    drawMaskOverlay(els.imageCanvas, maskStartPoint, maskPreviewPoint);
+  if (maskDragState) {
+    updateMaskDrag(clampToImageBounds(point));
+    drawMeasure();
     return;
   }
   if (gestureStart) {
     updateGestureAdjustments(point);
+    return;
+  }
+  if (draggedMeasurePointIndex !== null) {
+    measurePoints[draggedMeasurePointIndex] = clampToImageBounds(point);
+    suppressNextMeasureClick = true;
+    drawMeasure();
     return;
   }
   if (!perspectiveMode || draggedPerspectivePoint === null) return;
@@ -2921,13 +3137,15 @@ function handlePerspectivePointerMove(event) {
 }
 
 function handlePerspectivePointerUp(event) {
-  if (maskStartPoint) {
-    const start = maskStartPoint;
-    const end = clampToImageBounds(maskPreviewPoint || canvasPoint(els.imageCanvas, event));
-    maskStartPoint = null;
-    maskPreviewPoint = null;
+  if (maskDragState) {
+    const rect = maskRectangles.find((item) => item.id === maskDragState.id);
+    if (rect && (rect.width < 8 || rect.height < 8)) {
+      maskRectangles = maskRectangles.filter((item) => item.id !== rect.id);
+      activeMaskRectangleId = null;
+    }
+    maskDragState = null;
     els.imageCanvas.releasePointerCapture?.(event.pointerId);
-    commitMaskRectangle(start, end);
+    drawMeasure();
     return;
   }
   if (gestureStart) {
@@ -2938,6 +3156,12 @@ function handlePerspectivePointerUp(event) {
       current.updatedAt = new Date().toISOString();
       persist();
     }
+    return;
+  }
+  if (draggedMeasurePointIndex !== null) {
+    draggedMeasurePointIndex = null;
+    els.imageCanvas.releasePointerCapture?.(event.pointerId);
+    drawMeasure();
     return;
   }
   if (draggedPerspectivePoint === null) return;
@@ -2981,6 +3205,42 @@ function commitMaskRectangle(start, end) {
   ctx.fillStyle = els.maskFill?.value === "white" ? "#fff" : "#050807";
   ctx.fillRect(x, y, width, height);
   commitImageVersion(record, canvas.toDataURL("image/png", 0.92), "遮挡");
+}
+
+function applyMaskRectangles() {
+  const record = selectedImage();
+  if (!record || !imageEditor.img || !maskRectangles.length) {
+    setUploadStatus("请先添加遮挡框");
+    return;
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = els.imageCanvas.width;
+  canvas.height = els.imageCanvas.height;
+  drawProcessedImage(canvas);
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = els.maskFill?.value === "white" ? "#fff" : "#050807";
+  maskRectangles.forEach((rect) => {
+    ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+  });
+  resetPendingMasks();
+  maskMode = false;
+  if (els.maskMode) els.maskMode.checked = false;
+  commitImageVersion(record, canvas.toDataURL("image/png", 0.92), "遮挡");
+}
+
+function deleteActiveMaskRectangle() {
+  if (!activeMaskRectangleId) {
+    setUploadStatus("请先选中一个遮挡框");
+    return;
+  }
+  maskRectangles = maskRectangles.filter((rect) => rect.id !== activeMaskRectangleId);
+  activeMaskRectangleId = maskRectangles[0]?.id || null;
+  drawMeasure();
+}
+
+function clearMaskRectangles() {
+  resetPendingMasks();
+  drawMeasure();
 }
 
 function canvasPoint(canvas, event) {
@@ -3044,7 +3304,7 @@ async function handleImageUpload(event) {
       setUploadStatus(`有影像处理失败：${file.name}`);
     }
   }
-  current.privacyChecks.hideMetadata = true;
+  current.privacyChecks.deidentified ||= false;
   current.updatedAt = new Date().toISOString();
   event.target.value = "";
   persist();
@@ -3173,6 +3433,22 @@ function saveMeasurement(type) {
   drawMeasure();
 }
 
+function deleteActiveMeasurementRecord() {
+  if (editingMeasurementId) {
+    deleteMeasurement(editingMeasurementId);
+    activeMeasurementType = null;
+    editingMeasurementId = null;
+    measurePoints = [];
+    syncMeasurementUi();
+    drawMeasure();
+    return;
+  }
+  measurePoints = [];
+  activeMeasurementType = null;
+  syncMeasurementUi();
+  drawMeasure();
+}
+
 function saveCtDepression() {
   const current = activeCase();
   const image = selectedImage();
@@ -3295,7 +3571,7 @@ function editFollowup(id) {
   const item = current?.followups.find((entry) => entry.id === id);
   if (!item) return;
   editingFollowupId = id;
-  els.followupStage.value = item.stage || "术后 2 周";
+  els.followupStage.value = item.stage || "术后 4 周";
   els.followupDueDate.value = item.dueDate || "";
   els.vasScore.value = item.vas || "";
   els.functionScore.value = item.functionScore || "";
@@ -3382,9 +3658,7 @@ function runMediumPrivacyReview(current, draftText = "") {
   });
   if (messages.length) return { level: "block", messages };
   const confirmMessages = [];
-  if (!current.privacyChecks?.hideName) confirmMessages.push("未勾选已移除姓名/住院号");
-  if (!current.privacyChecks?.hideHospital) confirmMessages.push("未勾选已遮挡医院/二维码/检查号");
-  if (!current.privacyChecks?.hideMetadata) confirmMessages.push("未确认上传图像已重新编码");
+  if (!current.privacyChecks?.deidentified) confirmMessages.push("未勾选发布前去标识化确认");
   if (/(患者|住院|检查|医院|PACS|ID|MRN|条码|barcode|qrcode)/i.test(text)) {
     confirmMessages.push("文本或影像名称中出现敏感关键词");
   }
@@ -3429,6 +3703,8 @@ if ("serviceWorker" in navigator) {
 }
 
 wireEvents();
+gestureAdjustMode = true;
+if (els.gestureAdjustMode) els.gestureAdjustMode.checked = true;
 if (!state.cases.length) createCase();
 setIntroStep(0);
 renderAccessGate();

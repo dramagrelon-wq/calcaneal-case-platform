@@ -1189,6 +1189,11 @@ textarea:focus {
   background: #f4fbf9;
 }
 
+.soft-tissue-heading strong {
+  color: var(--accent-strong);
+  font-size: 15px;
+}
+
 .classification-grid,
 .classification-layout {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1424,10 +1429,11 @@ textarea:focus {
 }
 
 .workstation-tools {
-  gap: 10px;
+  gap: 8px;
   max-height: var(--viewer-height);
   overflow-y: auto;
   overscroll-behavior: contain;
+  font-size: 13px;
 }
 
 .tool-group {
@@ -1441,22 +1447,46 @@ textarea:focus {
 }
 
 .tool-group summary {
-  min-height: 42px;
-  padding: 11px 12px;
+  min-height: 36px;
+  padding: 9px 10px;
   cursor: pointer;
   background: #f7faf9;
   color: var(--ink);
+  font-size: 13px;
   font-weight: 900;
 }
 
 .tool-group > *:not(summary) {
-  margin: 0 12px 12px;
+  margin: 0 10px 10px;
 }
 
 .tool-group > .tool-row,
 .tool-group > .measurement-actions,
 .tool-group > .bulk-image-tools {
   margin-bottom: 12px;
+}
+
+.workstation-tools .tool-button,
+.workstation-tools select,
+.workstation-tools input,
+.workstation-tools .toggle-row {
+  min-height: 32px;
+  font-size: 12px;
+}
+
+.workstation-tools .tool-button {
+  padding: 0 8px;
+  border-radius: 7px;
+  font-weight: 800;
+}
+
+.workstation-tools .helper-text {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.compact-tool-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .score-field {

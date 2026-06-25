@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=24">
+    <link rel="stylesheet" href="styles.css?v=25">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -323,24 +323,53 @@
                 其他受伤机制
                 <input id="mechanismOther" placeholder="请补充具体受伤机制">
               </label>
+              <label>
+                入院日期
+                <input id="admissionDate" type="date">
+              </label>
+              <label>
+                手术日期
+                <input id="surgeryDate" type="date">
+              </label>
+              <label>
+                出院日期
+                <input id="dischargeDate" type="date">
+              </label>
+              <label>
+                手术等待时间（天）
+                <input id="surgeryWaitDays" type="number" min="0" max="120" placeholder="系统自动计算，可手改">
+              </label>
+              <label>
+                住院时间（天）
+                <input id="hospitalStayDays" type="number" min="0" max="180" placeholder="系统自动计算，可手改">
+              </label>
+              <label>
+                手术方式
+                <select id="surgeryMethod">
+                  <option value="">未填写</option>
+                  <option>闭合复位经皮微创手术</option>
+                  <option>跗骨窦入路手术</option>
+                  <option>开放复位手术（L 型切口开放复位手术）</option>
+                  <option>其他</option>
+                </select>
+              </label>
             </div>
 
             <div class="structured-injury-panel">
               <h3>合并损伤</h3>
               <p class="helper-text">没有合并损伤可以留空；如有，请勾选部位并补充具体内容。</p>
               <div class="injury-detail-grid">
-                <label class="wide priority-injury soft-tissue-heading">
-                  <span><input type="checkbox" id="injurySoftTissue"> 软组织损伤</span>
-                </label>
+                <div class="wide priority-injury soft-tissue-heading">
+                  <strong>软组织损伤</strong>
+                </div>
                 <div class="soft-tissue-options wide">
-                  <label><input type="checkbox" id="softTissueBloodBlister"> 血泡</label>
-                  <label><input type="checkbox" id="softTissueBlister"> 水泡</label>
-                  <label><input type="checkbox" id="softTissueOpenWound"> 开放性骨折</label>
                   <label><input type="checkbox" id="softTissueSwelling"> 明显肿胀</label>
+                  <label><input type="checkbox" id="softTissueBlister"> 水泡、血泡</label>
+                  <label><input type="checkbox" id="softTissueOpenWound"> 开放性骨折</label>
                   <label><input type="checkbox" id="softTissueCompartment"> 骨筋膜室综合征</label>
                 </div>
                 <label class="wide">
-                  合并其他软组织损伤
+                  其他软组织损伤
                   <input id="injurySoftTissueDetail" placeholder="皮肤坏死、挫裂伤、污染、张力性改变等">
                 </label>
                 <label>
@@ -438,12 +467,9 @@
                 <textarea id="threeStepNotes" rows="8" placeholder="记录术前计划、术中处理、固定方式、关键影像和复盘要点"></textarea>
               </label>
               <div class="privacy-checklist">
-                <h3>敏感信息隐藏</h3>
-                <label><input type="checkbox" id="hideName"> 已移除姓名/住院号</label>
-                <label><input type="checkbox" id="hideDates"> 已处理精确日期</label>
-                <label><input type="checkbox" id="hideHospital"> 已遮挡医院/二维码/检查号</label>
-                <label><input type="checkbox" id="hideMetadata"> 上传图像已重新编码</label>
-              <p>发布到讨论、教学、公开或科研范围前，系统会进行中等敏感度隐私审核；若提示存在姓名、电话、身份证号、检查号、二维码或患者信息栏，请先处理后再发布。本地私密随访信息应仅由医生本人在本机保存和使用。</p>
+                <h3>发布前隐私确认</h3>
+                <label><input type="checkbox" id="privacyConfirmed"> 我确认发布、讨论、教学、公开或科研前会完成去标识化</label>
+                <p>病例采集阶段只保留一个确认入口；当病例被归档到管理员可见、圈内教学、公开教学、多中心研究，或参与讨论时，系统会再进行中等敏感度隐私审核并提醒处理。</p>
               </div>
             </div>
 
@@ -670,7 +696,12 @@
                     </select>
                   </label>
                   <p class="helper-text">正式版会先自动生成已脱敏副本，原始图只临时用于处理，不进入病例库；自动审核不确定时，再提示医生手动遮挡。</p>
-                  <p class="helper-text">当前原型可手动拖出矩形遮挡姓名、号码、二维码、患者信息栏或屏幕反光区域，松手即保存为处理步骤。</p>
+                  <p class="helper-text">当前原型可手动拖出矩形遮挡姓名、号码、二维码、患者信息栏或屏幕反光区域；遮挡框可拖动、调整和删除，确认后再应用保存。</p>
+                  <div class="tool-row compact-tool-row">
+                    <button id="applyMaskRectangles" class="tool-button" type="button">应用遮挡</button>
+                    <button id="deleteMaskRectangle" class="tool-button" type="button">删除选中框</button>
+                    <button id="clearMaskRectangles" class="tool-button" type="button">清空遮挡框</button>
+                  </div>
                 </details>
 
                 <details class="tool-group">
@@ -733,6 +764,7 @@
                 </div>
                 <div class="measurement-actions measurement-confirm-actions">
                   <button id="saveActiveMeasurement" class="tool-button" type="button">保存测量图</button>
+                  <button id="deleteActiveMeasurement" class="tool-button" type="button">删除测量</button>
                   <button id="exitMeasurementMode" class="tool-button" type="button">退出测量</button>
                 </div>
                 <button id="resetPoints" class="tool-button">重置点位</button>
@@ -748,6 +780,7 @@
               <div>
                 <p class="eyebrow">Follow-up</p>
                 <h2>随访提醒与关键指标</h2>
+                <p class="helper-text">默认提醒方案为术后即刻、4 周、8 周、3 月、6 月、12 月、24 月；正式联网版应由系统向操作者发出随访确认提醒。</p>
               </div>
               <button class="primary-button" id="addFollowup">添加随访</button>
             </div>
@@ -756,20 +789,21 @@
               <label>
                 默认随访间隔
                 <select id="defaultFollowupInterval">
-                  <option value="2w-6w-3m-6m-12m">术后 2 周、6 周、3 月、6 月、12 月</option>
-                  <option value="monthly-6m">每月一次至 6 月</option>
-                  <option value="quarterly-1y">每 3 月一次至 1 年</option>
+                  <option value="immediate-4w-8w-3m-6m-12m-24m">术后即刻、4 周、8 周、3 月、6 月、12 月、24 月</option>
+                  <option value="4w-8w-3m-6m-12m">术后 4 周、8 周、3 月、6 月、12 月</option>
                   <option value="custom">自定义</option>
                 </select>
               </label>
               <label>
                 随访时间点
                 <select id="followupStage">
-                  <option>术后 2 周</option>
-                  <option>术后 6 周</option>
+                  <option>术后即刻</option>
+                  <option>术后 4 周</option>
+                  <option>术后 8 周</option>
                   <option>术后 3 月</option>
                   <option>术后 6 月</option>
                   <option>术后 12 月</option>
+                  <option>术后 24 月</option>
                   <option>自定义</option>
                 </select>
               </label>
