@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=22">
+    <link rel="stylesheet" href="styles.css?v=23">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -610,20 +610,100 @@
                   <strong>影像序列</strong>
                   <span id="imageUploadStatus" aria-live="polite">未选择影像</span>
                 </div>
-                <label>
-                  影像类型筛选
+                <div class="filmstrip-filters" aria-label="影像筛选">
+                  <label>
+                    阶段筛选
+                    <select id="imagePhaseFilter">
+                      <option value="all">全部阶段</option>
+                      <option value="preop">术前</option>
+                      <option value="intraop">术中</option>
+                      <option value="postop">术后</option>
+                      <option value="followup">随访</option>
+                      <option value="unclassified">待归类</option>
+                    </select>
+                  </label>
+                  <label>
+                    时间点筛选
+                    <select id="imageTimepointFilter">
+                      <option value="all">全部时间点</option>
+                      <option value="pre-injury">伤前/既往</option>
+                      <option value="injury-day">受伤当天</option>
+                      <option value="preop">术前</option>
+                      <option value="intraop">术中</option>
+                      <option value="postop-immediate">术后即刻</option>
+                      <option value="postop-2w">术后 2 周</option>
+                      <option value="postop-6w">术后 6 周</option>
+                      <option value="postop-3m">术后 3 个月</option>
+                      <option value="postop-6m">术后 6 个月</option>
+                      <option value="postop-12m">术后 12 个月</option>
+                      <option value="custom">自定义时间点</option>
+                    </select>
+                  </label>
+                  <label>
+                    资料类型
+                    <select id="imageModalityFilter">
+                      <option value="all">全部类型</option>
+                      <option value="xray">X 线</option>
+                      <option value="ct">CT</option>
+                      <option value="fluoro">透视</option>
+                      <option value="appearance">足部外观</option>
+                      <option value="rom">活动度</option>
+                      <option value="incision">切口/软组织</option>
+                      <option value="photo">普通照片</option>
+                      <option value="other">其他</option>
+                    </select>
+                  </label>
+                  <label>
+                    具体归类
                   <select id="imageCategoryFilter">
-                    <option value="all">全部</option>
+                    <option value="all">全部归类</option>
+                    <option value="unclassified">待归类</option>
                     <option value="preop-xray">术前 X 线</option>
                     <option value="intraop-xray">术中 X 线</option>
                     <option value="intraop-fluoro">术中透视</option>
                     <option value="postop-xray">术后 X 线</option>
                     <option value="preop-ct">术前 CT</option>
                     <option value="postop-ct">术后 CT</option>
+                    <option value="followup-xray">随访 X 线</option>
+                    <option value="followup-ct">随访 CT</option>
+                    <option value="foot-appearance">足部外观</option>
+                    <option value="rom-photo">活动度照片</option>
+                    <option value="incision-photo">切口/软组织照片</option>
                     <option value="intraop-other">术中其他图片</option>
                     <option value="other">其他图片</option>
                   </select>
-                </label>
+                  </label>
+                </div>
+                <details class="filmstrip-bulk" open>
+                  <summary>批量归类</summary>
+                  <p class="helper-text">先用上方筛选查看某一类影像，再勾选缩略图统一归类；正位、侧位、轴位资料允许缺失。</p>
+                  <div class="bulk-image-tools stacked-tools">
+                    <label class="toggle-row">
+                      <input id="selectAllImages" type="checkbox">
+                      全选当前筛选结果
+                    </label>
+                    <label>
+                      归类为
+                      <select id="bulkImageCategory">
+                        <option value="unclassified">待归类</option>
+                        <option value="preop-xray">术前 X 线</option>
+                        <option value="intraop-xray">术中 X 线</option>
+                        <option value="intraop-fluoro">术中透视</option>
+                        <option value="postop-xray">术后 X 线</option>
+                        <option value="preop-ct">术前 CT</option>
+                        <option value="postop-ct">术后 CT</option>
+                        <option value="followup-xray">随访 X 线</option>
+                        <option value="followup-ct">随访 CT</option>
+                        <option value="foot-appearance">足部外观</option>
+                        <option value="rom-photo">活动度照片</option>
+                        <option value="incision-photo">切口/软组织照片</option>
+                        <option value="intraop-other">术中其他图片</option>
+                        <option value="other">其他图片</option>
+                      </select>
+                    </label>
+                    <button class="tool-button" id="applyBulkImageCategory" type="button">应用到勾选影像</button>
+                  </div>
+                </details>
                 <select id="imageSelect" class="hidden-field" aria-label="当前影像"></select>
                 <div id="imageList" class="image-list"></div>
               </aside>
@@ -636,31 +716,6 @@
               </div>
 
               <aside class="tool-panel workstation-tools" aria-label="影像操作">
-                <details class="tool-group" open>
-                  <summary>归类</summary>
-                  <p class="helper-text">可在左侧勾选一张或多张缩略图，再统一归类；正位、侧位、轴位资料允许缺失。</p>
-                  <div class="bulk-image-tools stacked-tools">
-                    <label class="toggle-row">
-                      <input id="selectAllImages" type="checkbox">
-                      全选当前影像
-                    </label>
-                    <label>
-                      批量归类为
-                      <select id="bulkImageCategory">
-                        <option value="preop-xray">术前 X 线</option>
-                        <option value="intraop-xray">术中 X 线</option>
-                        <option value="intraop-fluoro">术中透视</option>
-                        <option value="postop-xray">术后 X 线</option>
-                        <option value="preop-ct">术前 CT</option>
-                        <option value="postop-ct">术后 CT</option>
-                        <option value="intraop-other">术中其他图片</option>
-                        <option value="other">其他图片</option>
-                      </select>
-                    </label>
-                    <button class="tool-button" id="applyBulkImageCategory" type="button">应用到勾选影像</button>
-                  </div>
-                </details>
-
                 <details class="tool-group" open>
                   <summary>矫正</summary>
                   <div class="tool-row">
@@ -683,6 +738,27 @@
                 </details>
 
                 <details class="tool-group">
+                  <summary>采集清理</summary>
+                  <label class="toggle-row">
+                    <input id="maskMode" type="checkbox">
+                    遮挡反光/人物/患者信息
+                  </label>
+                  <label>
+                    遮挡颜色
+                    <select id="maskFill">
+                      <option value="black">黑色遮挡</option>
+                      <option value="white">白色遮挡</option>
+                    </select>
+                  </label>
+                  <p class="helper-text">开启后在中间影像上拖出矩形区域，松手即保存为一个处理步骤；可用后退一步恢复。</p>
+                  <div class="privacy-checklist compact-capture-checks">
+                    <label><input id="captureHideReflection" type="checkbox">反光人物已处理</label>
+                    <label><input id="captureHidePatientInfo" type="checkbox">患者信息已遮挡</label>
+                    <label><input id="captureReadyForClassify" type="checkbox">确认后再归类</label>
+                  </div>
+                </details>
+
+                <details class="tool-group">
                   <summary>滤镜调整</summary>
                   <label>
                     图片显示
@@ -696,6 +772,11 @@
                     <input id="blackWhiteMode" type="checkbox">
                     黑白滤镜
                   </label>
+                  <label class="toggle-row">
+                    <input id="gestureAdjustMode" type="checkbox">
+                    拖动调窗
+                  </label>
+                  <p class="helper-text">开启后在影像上左右拖动调对比度、上下拖动调亮度；滑块仍可精细调整，适合电脑端和后续移动端并存。</p>
                   <label>
                     亮度
                     <input id="brightness" type="range" min="-50" max="50" value="0">

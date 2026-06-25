@@ -1110,7 +1110,7 @@ textarea:focus {
 }
 
 .image-workspace {
-  grid-template-columns: minmax(150px, 190px) minmax(0, 1fr) minmax(260px, 340px);
+  grid-template-columns: minmax(210px, 260px) minmax(0, 1fr) minmax(250px, 320px);
   align-items: start;
   --viewer-height: clamp(430px, 58vh, 720px);
 }
@@ -1374,6 +1374,15 @@ textarea:focus {
   gap: 10px;
 }
 
+.compact-capture-checks {
+  gap: 8px;
+}
+
+.compact-capture-checks label {
+  min-height: 34px;
+  font-size: 13px;
+}
+
 .measurement-context,
 .ct-measurement-panel {
   display: grid;
@@ -1529,7 +1538,7 @@ textarea:focus {
 
 .image-filmstrip {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 10px;
   max-height: var(--viewer-height);
   padding: 12px;
@@ -1547,6 +1556,43 @@ textarea:focus {
 
 .image-filmstrip select {
   background: #fff;
+}
+
+.filmstrip-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.filmstrip-filters label {
+  min-width: 0;
+}
+
+.filmstrip-bulk {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(207, 225, 221, 0.18);
+  border-radius: 8px;
+  background: #172321;
+}
+
+.filmstrip-bulk summary {
+  min-height: 38px;
+  padding: 9px 10px;
+  cursor: pointer;
+  color: #e7f0ed;
+  font-weight: 900;
+}
+
+.filmstrip-bulk > *:not(summary) {
+  margin: 0 10px 10px;
+}
+
+.filmstrip-bulk .tool-button {
+  border-color: rgba(247, 209, 84, 0.38);
+  color: #f7d154;
 }
 
 .image-filmstrip .image-list {
@@ -1984,6 +2030,10 @@ input[type="range"] {
   .discussion-forum,
   .reading-grid,
   .reading-images {
+    grid-template-columns: 1fr;
+  }
+
+  .filmstrip-filters {
     grid-template-columns: 1fr;
   }
 }
