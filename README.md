@@ -26,7 +26,7 @@ This repository currently contains a no-build Progressive Web App prototype:
 - Works in a browser by opening `index.html`
 - Can be added to the Android/iOS home screen as a PWA
 - Starts with a public welcome page; physician real-name and credential review appears when entering protected case content
-- Stores data locally in the browser
+- Stores data locally in the current browser, with IndexedDB used for image-heavy cases
 - Supports JSON export/import for data portability
 - Re-encodes uploaded images through canvas to strip ordinary browser-readable metadata
 - Keeps patient name, phone number, ID number, exact age, and exact sex in a separate local-only storage area that is excluded from normal case export

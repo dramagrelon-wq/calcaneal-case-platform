@@ -1,6 +1,15 @@
 const STORAGE_KEY = "calcaneal-case:v1";
 const PRIVATE_STORAGE_KEY = "calcaneal-case:doctor-private:v1";
 const ACCESS_STORAGE_KEY = "calcaneal-case:doctor-access:v1";
+const LOCAL_DATABASE_NAME = "calcaneal-case-local-data";
+const LOCAL_DATABASE_VERSION = 1;
+const LOCAL_RECORD_STORE = "records";
+const LOCAL_STORAGE_SOFT_LIMIT = 3_500_000;
+const LARGE_STORAGE_KEYS = {
+  state: "state:v1",
+  private: "doctor-private:v1",
+  access: "doctor-access:v1"
+};
 
 const defaultState = {
   activeCaseId: null,
@@ -43,6 +52,8 @@ let gestureStart = null;
 let introTimer = null;
 let introStep = 0;
 let introPlaying = false;
+let largeStorageWarningShown = false;
+let largeStorageWriteQueues = {};
 
 const introSteps = [
   ["术前 X 线", "先把脱敏后的 X 线和 CT 放进同一条病例时间线，后面才能讨论分型、复位和随访。"],
@@ -361,14 +372,21 @@ function loadState() {
   }
 }
 
+function normalizePrivateState(value) {
+  return {
+    cases: value?.cases || {},
+    trash: value?.trash || {}
+  };
+}
+
+function isEmptyPrivateState(value) {
+  return !Object.keys(value?.cases || {}).length && !Object.keys(value?.trash || {}).length;
+}
+
 function loadPrivateState() {
   try {
     const raw = localStorage.getItem(PRIVATE_STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : { cases: {}, trash: {} };
-    return {
-      cases: parsed.cases || {},
-      trash: parsed.trash || {}
-    };
+    return normalizePrivateState(raw ? JSON.parse(raw) : null);
   } catch {
     return { cases: {}, trash: {} };
   }
@@ -383,18 +401,164 @@ function loadAccessState() {
   }
 }
 
+function openLocalDatabase() {
+  return new Promise((resolve, reject) => {
+    if (!("indexedDB" in window)) {
+      reject(new Error("IndexedDB unavailable"));
+      return;
+    }
+    const request = indexedDB.open(LOCAL_DATABASE_NAME, LOCAL_DATABASE_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(LOCAL_RECORD_STORE)) {
+        db.createObjectStore(LOCAL_RECORD_STORE, { keyPath: "key" });
+      }
+    };
+    request.onerror = () => reject(request.error || new Error("Failed to open IndexedDB"));
+    request.onsuccess = () => resolve(request.result);
+  });
+}
+
+async function readLargeRecord(key) {
+  const db = await openLocalDatabase();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(LOCAL_RECORD_STORE, "readonly");
+    const request = tx.objectStore(LOCAL_RECORD_STORE).get(key);
+    request.onerror = () => reject(request.error || new Error("Failed to read local record"));
+    request.onsuccess = () => resolve(request.result?.data || null);
+    tx.oncomplete = () => db.close();
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error || new Error("Failed to read local record"));
+    };
+  });
+}
+
+async function writeLargeRecord(key, data) {
+  const db = await openLocalDatabase();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(LOCAL_RECORD_STORE, "readwrite");
+    const request = tx.objectStore(LOCAL_RECORD_STORE).put({
+      key,
+      data,
+      savedAt: new Date().toISOString()
+    });
+    request.onerror = () => reject(request.error || new Error("Failed to write local record"));
+    tx.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    tx.onerror = () => {
+      db.close();
+      reject(tx.error || new Error("Failed to write local record"));
+    };
+  });
+}
+
+function latestStateTime(value) {
+  const items = [...(value?.cases || []), ...(value?.trash || [])];
+  return items.reduce((latest, item) => {
+    const candidates = [item.updatedAt, item.createdAt, item.deletedAt].filter(Boolean);
+    const stamp = Math.max(0, ...candidates.map((date) => new Date(date).getTime() || 0));
+    return Math.max(latest, stamp);
+  }, 0);
+}
+
+function shouldUseLargeState(largeState, currentState) {
+  const largeCount = (largeState?.cases?.length || 0) + (largeState?.trash?.length || 0);
+  if (!largeCount) return false;
+  const currentCount = (currentState?.cases?.length || 0) + (currentState?.trash?.length || 0);
+  if (!currentCount) return true;
+  return latestStateTime(largeState) >= latestStateTime(currentState);
+}
+
+async function hydrateFromLargeLocalStorage() {
+  try {
+    const [largeState, largePrivateState, largeAccessState] = await Promise.all([
+      readLargeRecord(LARGE_STORAGE_KEYS.state).catch(() => null),
+      readLargeRecord(LARGE_STORAGE_KEYS.private).catch(() => null),
+      readLargeRecord(LARGE_STORAGE_KEYS.access).catch(() => null)
+    ]);
+    const normalizedLargeState = largeState ? normalizeState(largeState) : null;
+    if (normalizedLargeState && shouldUseLargeState(normalizedLargeState, state)) {
+      state = normalizedLargeState;
+    }
+    if (largePrivateState && isEmptyPrivateState(privateState)) {
+      privateState = normalizePrivateState(largePrivateState);
+    }
+    if (largeAccessState && !accessState.approved) accessState = largeAccessState;
+  } catch {
+    // localStorage remains the fallback in browsers that block IndexedDB.
+  }
+}
+
+function snapshotForStorage(data) {
+  try {
+    return structuredClone(data);
+  } catch {
+    return JSON.parse(JSON.stringify(data));
+  }
+}
+
+function writeLargeRecordQuietly(key, data, successMessage = "") {
+  const snapshot = snapshotForStorage(data);
+  largeStorageWriteQueues[key] = (largeStorageWriteQueues[key] || Promise.resolve())
+    .catch(() => {})
+    .then(() => writeLargeRecord(key, snapshot));
+  const write = largeStorageWriteQueues[key]
+    .then(() => {
+      if (successMessage) markSaved(successMessage);
+    })
+    .catch(() => {
+      warnLargeStorageFailure();
+    });
+  return write;
+}
+
+function warnLargeStorageFailure() {
+  const message = "本地大容量保存失败，请先导出 JSON 备份";
+  setUploadStatus(message);
+  markSaved(message);
+  if (!largeStorageWarningShown) {
+    largeStorageWarningShown = true;
+    console.warn("Calcaneal Case local persistence failed. Export a JSON backup before refreshing.");
+  }
+}
+
 function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  markSaved("已自动保存");
+  const largeWrite = writeLargeRecordQuietly(LARGE_STORAGE_KEYS.state, state);
+  try {
+    const serialized = JSON.stringify(state);
+    if (serialized.length > LOCAL_STORAGE_SOFT_LIMIT) {
+      throw new Error("State is too large for localStorage mirror");
+    }
+    localStorage.setItem(STORAGE_KEY, serialized);
+    markSaved("已自动保存");
+  } catch {
+    markSaved("影像较多，已保存到浏览器大容量本地存储");
+  }
+  return largeWrite;
 }
 
 function persistPrivate() {
-  localStorage.setItem(PRIVATE_STORAGE_KEY, JSON.stringify(privateState));
-  markSaved("私密信息已本地保存");
+  const largeWrite = writeLargeRecordQuietly(LARGE_STORAGE_KEYS.private, privateState);
+  try {
+    localStorage.setItem(PRIVATE_STORAGE_KEY, JSON.stringify(privateState));
+    markSaved("私密信息已本地保存");
+  } catch {
+    markSaved("私密信息已保存到浏览器大容量本地存储");
+  }
+  return largeWrite;
 }
 
 function persistAccess() {
-  localStorage.setItem(ACCESS_STORAGE_KEY, JSON.stringify(accessState));
+  const largeWrite = writeLargeRecordQuietly(LARGE_STORAGE_KEYS.access, accessState);
+  try {
+    localStorage.setItem(ACCESS_STORAGE_KEY, JSON.stringify(accessState));
+  } catch {
+    warnLargeStorageFailure();
+  }
+  return largeWrite;
 }
 
 function markSaved(prefix = "已自动保存") {
@@ -3330,7 +3494,7 @@ async function handleImageUpload(event) {
   current.privacyChecks.deidentified ||= false;
   current.updatedAt = new Date().toISOString();
   event.target.value = "";
-  persist();
+  await persist();
   render();
   setUploadStatus(failedCount
     ? `已完成 ${uploadedCount} 张，失败 ${failedCount} 张`
@@ -3718,16 +3882,21 @@ function importData(event) {
   event.target.value = "";
 }
 
+async function bootApp() {
+  await hydrateFromLargeLocalStorage();
+  wireEvents();
+  gestureAdjustMode = true;
+  if (els.gestureAdjustMode) els.gestureAdjustMode.checked = true;
+  if (!state.cases.length) createCase();
+  setIntroStep(0);
+  renderAccessGate();
+  render();
+}
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("service-worker.js").catch(() => {});
   });
 }
 
-wireEvents();
-gestureAdjustMode = true;
-if (els.gestureAdjustMode) els.gestureAdjustMode.checked = true;
-if (!state.cases.length) createCase();
-setIntroStep(0);
-renderAccessGate();
-render();
+bootApp();

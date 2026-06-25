@@ -229,7 +229,12 @@ const appChecks = [
   "clampToImageBounds",
   "suggestClassification",
   "exportData",
-  "importData"
+  "importData",
+  "LOCAL_DATABASE_NAME",
+  "LOCAL_STORAGE_SOFT_LIMIT",
+  "hydrateFromLargeLocalStorage",
+  "writeLargeRecordQuietly",
+  "await persist()"
 ];
 
 for (const check of appChecks) {

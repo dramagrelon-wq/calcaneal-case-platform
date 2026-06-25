@@ -1,6 +1,6 @@
 # Data Model
 
-The prototype stores a JSON document in browser local storage. Future backend storage should preserve the same core shape so web, Android, and iOS clients can share data.
+The prototype stores the same JSON-shaped case document locally in the browser. Small records are mirrored in `localStorage`; image-heavy case data is also written to IndexedDB so uploaded radiographs and CT images can survive refreshes and static site version updates. Future backend storage should preserve the same core shape so web, Android, and iOS clients can share data.
 
 ## Case
 
