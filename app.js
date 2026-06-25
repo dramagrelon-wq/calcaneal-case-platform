@@ -3887,7 +3887,13 @@ async function bootApp() {
   wireEvents();
   gestureAdjustMode = true;
   if (els.gestureAdjustMode) els.gestureAdjustMode.checked = true;
-  if (!state.cases.length) createCase();
+  if (!state.cases.length) {
+    createCase();
+  } else {
+    writeLargeRecordQuietly(LARGE_STORAGE_KEYS.state, state);
+    if (!isEmptyPrivateState(privateState)) writeLargeRecordQuietly(LARGE_STORAGE_KEYS.private, privateState);
+    if (accessState.approved) writeLargeRecordQuietly(LARGE_STORAGE_KEYS.access, accessState);
+  }
   setIntroStep(0);
   renderAccessGate();
   render();
