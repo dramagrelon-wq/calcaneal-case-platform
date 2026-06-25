@@ -1112,6 +1112,7 @@ textarea:focus {
 .image-workspace {
   grid-template-columns: minmax(150px, 190px) minmax(0, 1fr) minmax(260px, 340px);
   align-items: start;
+  --viewer-height: clamp(430px, 58vh, 720px);
 }
 
 .privacy-checklist,
@@ -1415,6 +1416,9 @@ textarea:focus {
 
 .workstation-tools {
   gap: 10px;
+  max-height: var(--viewer-height);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .tool-group {
@@ -1525,8 +1529,11 @@ textarea:focus {
 
 .image-filmstrip {
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 10px;
+  max-height: var(--viewer-height);
   padding: 12px;
+  overflow: hidden;
   border: 1px solid #1d2a28;
   border-radius: 8px;
   background: #101817;
@@ -1536,6 +1543,17 @@ textarea:focus {
 .image-filmstrip label,
 .image-filmstrip .helper-text {
   color: #cfe1dd;
+}
+
+.image-filmstrip select {
+  background: #fff;
+}
+
+.image-filmstrip .image-list {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 3px;
 }
 
 .filmstrip-heading {
@@ -1555,7 +1573,8 @@ textarea:focus {
 }
 
 .c-arm-viewer {
-  min-height: clamp(360px, 54vw, 680px);
+  height: var(--viewer-height);
+  min-height: 0;
   border-color: #263635;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
@@ -1647,12 +1666,6 @@ textarea:focus {
   border-color: var(--accent);
   background: #213d39;
   color: #fff;
-}
-
-.image-row select {
-  grid-column: 1 / -1;
-  min-height: 34px;
-  background: #fff;
 }
 
 .image-delete {

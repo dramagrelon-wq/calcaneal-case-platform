@@ -256,6 +256,7 @@ const els = {
   credentialFileName: $("#credentialFileName"),
   imageUpload: $("#imageUpload"),
   cameraCapture: $("#cameraCapture"),
+  imageCategoryFilter: $("#imageCategoryFilter"),
   imageSelect: $("#imageSelect"),
   imageList: $("#imageList"),
   imageCanvas: $("#imageCanvas"),
@@ -969,13 +970,17 @@ function renderActiveCase() {
 function renderImages() {
   const current = activeCase();
   if (!current) return;
+  const filter = els.imageCategoryFilter?.value || "all";
+  const visibleImages = filter === "all"
+    ? current.images
+    : current.images.filter((image) => image.category === filter);
 
   els.imageSelect.innerHTML = current.images.length
     ? current.images.map((image) => `<option value="${image.id}">${escapeHtml(imageCategoryLabel(image.category))} · ${escapeHtml(image.name)}</option>`).join("")
     : `<option value="">暂无影像</option>`;
 
-  els.imageList.innerHTML = current.images.length
-    ? current.images.map((image) => `
+  els.imageList.innerHTML = visibleImages.length
+    ? visibleImages.map((image) => `
         <article class="image-row" data-image-id="${image.id}">
           <input class="image-check" type="checkbox" data-image-check="${image.id}" aria-label="选择 ${escapeHtml(image.name)}">
           <button class="image-pick ${image.id === (imageEditor.imageId || current.images[0]?.id) ? "active" : ""}" data-pick-image="${image.id}">
@@ -983,13 +988,10 @@ function renderImages() {
             <span>${escapeHtml(image.name)}</span>
             <em>${escapeHtml(imageCategoryLabel(image.category))}</em>
           </button>
-          <select data-image-category="${image.id}" aria-label="影像分类">
-            ${imageCategoryOptions(image.category)}
-          </select>
           <button class="image-delete" type="button" data-delete-image="${image.id}" aria-label="删除 ${escapeHtml(image.name)}">删除图像</button>
         </article>
       `).join("")
-    : `<p class="helper-text">暂无影像。可批量上传后逐张设置分类。</p>`;
+    : `<p class="helper-text">${current.images.length ? "当前筛选下暂无影像。" : "暂无影像。可批量上传后在右侧统一归类。"}</p>`;
   if (els.selectAllImages) els.selectAllImages.checked = false;
 
   const selected = current.images.find((image) => image.id === imageEditor.imageId) || current.images[0];
@@ -2321,6 +2323,9 @@ function wireEvents() {
     renderImages();
     renderMeasurements();
   });
+  els.imageCategoryFilter.addEventListener("change", () => {
+    renderImages();
+  });
   els.imageList.addEventListener("click", (event) => {
     const deleteButton = event.target.closest("[data-delete-image]");
     if (deleteButton) {
@@ -2337,19 +2342,6 @@ function wireEvents() {
     renderImages();
     renderMeasurements();
   });
-  els.imageList.addEventListener("change", (event) => {
-    const select = event.target.closest("[data-image-category]");
-    if (!select) return;
-    const current = activeCase();
-    const image = current?.images.find((item) => item.id === select.dataset.imageCategory);
-    if (!current || !image) return;
-    image.category = normalizeImageCategory(select.value);
-    current.updatedAt = new Date().toISOString();
-    persist();
-    renderImages();
-    renderMeasurements();
-  });
-
   els.selectAllImages.addEventListener("change", () => {
     $$("[data-image-check]").forEach((input) => {
       input.checked = els.selectAllImages.checked;
