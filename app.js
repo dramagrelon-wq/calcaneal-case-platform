@@ -82,12 +82,22 @@ const injuryLabels = {
   other: "其他"
 };
 
-const softTissueKeys = ["swelling", "blister", "openWound", "compartment"];
+const softTissueKeys = ["swelling", "waterBlister", "bloodBlister", "openWound", "compartment", "other"];
 const softTissueLabels = {
-  blister: "水泡、血泡",
+  waterBlister: "水泡",
+  bloodBlister: "血泡",
   openWound: "开放性骨折",
   swelling: "明显肿胀",
-  compartment: "骨筋膜室综合征"
+  compartment: "骨筋膜室综合征",
+  other: "其他软组织损伤"
+};
+const softTissueFieldMap = {
+  swelling: ["softTissueSwelling", "softTissueSwellingDetail"],
+  waterBlister: ["softTissueWaterBlister", "softTissueWaterBlisterDetail"],
+  bloodBlister: ["softTissueBloodBlister", "softTissueBloodBlisterDetail"],
+  openWound: ["softTissueOpenWound", "softTissueOpenWoundDetail"],
+  compartment: ["softTissueCompartment", "softTissueCompartmentDetail"],
+  other: ["softTissueOther", "softTissueOtherDetail"]
 };
 
 const measurementDistanceTypes = [];
@@ -233,11 +243,18 @@ const els = {
     injuryPelvisDetail: $("#injuryPelvisDetail"),
     injuryFoot: $("#injuryFoot"),
     injuryFootDetail: $("#injuryFootDetail"),
-    injurySoftTissueDetail: $("#injurySoftTissueDetail"),
-    softTissueBlister: $("#softTissueBlister"),
     softTissueSwelling: $("#softTissueSwelling"),
+    softTissueSwellingDetail: $("#softTissueSwellingDetail"),
+    softTissueWaterBlister: $("#softTissueWaterBlister"),
+    softTissueWaterBlisterDetail: $("#softTissueWaterBlisterDetail"),
+    softTissueBloodBlister: $("#softTissueBloodBlister"),
+    softTissueBloodBlisterDetail: $("#softTissueBloodBlisterDetail"),
     softTissueOpenWound: $("#softTissueOpenWound"),
+    softTissueOpenWoundDetail: $("#softTissueOpenWoundDetail"),
     softTissueCompartment: $("#softTissueCompartment"),
+    softTissueCompartmentDetail: $("#softTissueCompartmentDetail"),
+    softTissueOther: $("#softTissueOther"),
+    softTissueOtherDetail: $("#softTissueOtherDetail"),
     injuryOther: $("#injuryOther"),
     injuryOtherDetail: $("#injuryOtherDetail"),
     threeStepNotes: $("#threeStepNotes"),
@@ -681,10 +698,16 @@ function mechanismTypeFromValue(value = "") {
 function normalizeCombinedInjuries(value, legacyText = "") {
   const base = {};
   injuryKeys.forEach((key) => {
+    const findings = { ...(value?.[key]?.findings || {}) };
+    if (key === "softTissue" && findings.blister) {
+      findings.waterBlister ??= true;
+      findings.bloodBlister ??= true;
+    }
     base[key] = {
       checked: Boolean(value?.[key]?.checked),
       detail: value?.[key]?.detail || "",
-      findings: { ...(value?.[key]?.findings || {}) }
+      findings,
+      findingDetails: { ...(value?.[key]?.findingDetails || value?.[key]?.details || {}) }
     };
   });
   if (!value && legacyText) {
@@ -712,7 +735,12 @@ function combinedInjurySummary(item) {
     .map((key) => {
       const detail = combined[key]?.detail?.trim();
       const findings = key === "softTissue"
-        ? softTissueKeys.filter((item) => combined[key]?.findings?.[item]).map((item) => softTissueLabels[item])
+        ? softTissueKeys
+            .filter((item) => combined[key]?.findings?.[item])
+            .map((item) => {
+              const findingDetail = combined[key]?.findingDetails?.[item]?.trim();
+              return findingDetail ? `${softTissueLabels[item]}（${findingDetail}）` : softTissueLabels[item];
+            })
         : [];
       const text = [findings.join("、"), detail].filter(Boolean).join("；");
       return text ? `${injuryLabels[key]}：${text}` : injuryLabels[key];
@@ -776,19 +804,23 @@ function updateCombinedInjuryFromFields() {
   injuryKeys.forEach((key) => {
     const checkbox = els.fields[`injury${injuryFieldName(key)}`];
     const detail = els.fields[`injury${injuryFieldName(key)}Detail`];
-    const softFindings = key === "softTissue"
-      ? {
-          swelling: els.fields.softTissueSwelling.checked,
-          blister: els.fields.softTissueBlister.checked,
-          openWound: els.fields.softTissueOpenWound.checked,
-          compartment: els.fields.softTissueCompartment.checked
-        }
-      : {};
-    const softChecked = key === "softTissue" && (detail.value.trim() || Object.values(softFindings).some(Boolean));
+    const softFindings = {};
+    const softFindingDetails = {};
+    if (key === "softTissue") {
+      softTissueKeys.forEach((item) => {
+        const [checkboxKey, detailKey] = softTissueFieldMap[item];
+        const detailText = els.fields[detailKey]?.value.trim() || "";
+        softFindings[item] = Boolean(els.fields[checkboxKey]?.checked || detailText);
+        softFindingDetails[item] = detailText;
+      });
+    }
+    const softChecked = key === "softTissue"
+      && (Object.values(softFindings).some(Boolean) || Object.values(softFindingDetails).some(Boolean));
     combinedInjuries[key] = {
       checked: key === "softTissue" ? Boolean(softChecked) : Boolean(checkbox.checked),
-      detail: detail.value.trim(),
-      findings: softFindings
+      detail: key === "softTissue" ? "" : detail.value.trim(),
+      findings: softFindings,
+      findingDetails: softFindingDetails
     };
   });
   updateCase({
@@ -1154,14 +1186,16 @@ function renderActiveCase() {
     const fieldName = injuryFieldName(key);
     if (key !== "softTissue") {
       els.fields[`injury${fieldName}`].checked = Boolean(current.combinedInjuries[key]?.checked);
+      els.fields[`injury${fieldName}Detail`].value = current.combinedInjuries[key]?.detail || "";
     }
-    els.fields[`injury${fieldName}Detail`].value = current.combinedInjuries[key]?.detail || "";
   });
   const softFindings = current.combinedInjuries.softTissue?.findings || {};
-  els.fields.softTissueBlister.checked = Boolean(softFindings.blister || softFindings.bloodBlister);
-  els.fields.softTissueSwelling.checked = Boolean(softFindings.swelling);
-  els.fields.softTissueOpenWound.checked = Boolean(softFindings.openWound);
-  els.fields.softTissueCompartment.checked = Boolean(softFindings.compartment);
+  const softFindingDetails = current.combinedInjuries.softTissue?.findingDetails || {};
+  softTissueKeys.forEach((item) => {
+    const [checkboxKey, detailKey] = softTissueFieldMap[item];
+    els.fields[checkboxKey].checked = Boolean(softFindings[item] || (item === "waterBlister" && softFindings.blister));
+    els.fields[detailKey].value = softFindingDetails[item] || "";
+  });
   els.fields.threeStepNotes.value = current.threeStepNotes;
   const local = activePrivateCase();
   els.fields.localPatientName.value = local.patientName || "";
@@ -2929,12 +2963,14 @@ function wireEvents() {
     const fieldName = injuryFieldName(key);
     if (key !== "softTissue") {
       els.fields[`injury${fieldName}`].addEventListener("change", updateCombinedInjuryFromFields);
+      els.fields[`injury${fieldName}Detail`].addEventListener("input", updateCombinedInjuryFromFields);
     }
-    els.fields[`injury${fieldName}Detail`].addEventListener("input", updateCombinedInjuryFromFields);
   });
 
-  ["softTissueBlister", "softTissueSwelling", "softTissueOpenWound", "softTissueCompartment"].forEach((key) => {
-    els.fields[key].addEventListener("change", updateCombinedInjuryFromFields);
+  softTissueKeys.forEach((item) => {
+    const [checkboxKey, detailKey] = softTissueFieldMap[item];
+    els.fields[checkboxKey].addEventListener("change", updateCombinedInjuryFromFields);
+    els.fields[detailKey].addEventListener("input", updateCombinedInjuryFromFields);
   });
 
   els.fields.adminApplicationReason.addEventListener("input", () => {

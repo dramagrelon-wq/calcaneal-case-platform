@@ -19,13 +19,13 @@ Calcaneal fracture cases are image-heavy, longitudinal, and discussion-heavy. A 
 - structured case discussion
 - follow-up reminders and outcome tracking
 
-## Current prototype
+## Current web/PWA version
 
-This repository currently contains a no-build Progressive Web App prototype:
+This repository currently contains a no-build Progressive Web App that can be used directly from desktop or mobile browsers:
 
 - Works in a browser by opening `index.html`
 - Can be added to the Android/iOS home screen as a PWA
-- Starts with a public welcome page; physician real-name and credential review appears when entering protected case content
+- Starts with a formal mobile-friendly product entry; physician real-name and credential review appears when entering protected case content
 - Stores data locally in the current browser, with IndexedDB used for image-heavy cases
 - Supports JSON export/import for data portability
 - Re-encodes uploaded images through canvas to strip ordinary browser-readable metadata
@@ -33,13 +33,13 @@ This repository currently contains a no-build Progressive Web App prototype:
 
 ## Open the app
 
-Public demo:
+Public web version:
 
 ```text
 https://dramagrelon-wq.github.io/calcaneal-case-platform/
 ```
 
-The demo is published with GitHub Pages from the `main` branch.
+The web version is published with GitHub Pages from the `main` branch.
 
 For local preview, open:
 
@@ -47,11 +47,11 @@ For local preview, open:
 index.html
 ```
 
-No package install is required for the prototype.
+No package install is required for the current static web version.
 
 ## Safety and privacy
 
-This project is intended for medical professionals. The prototype includes privacy prompts and basic image sanitization, but it is not yet HIPAA/PIPL/GDPR compliant. Do not upload identifiable patient data into shared or public environments until a deployment has been legally and technically reviewed.
+This project is intended for medical professionals. The current web version includes privacy prompts and basic image sanitization, but it is not yet HIPAA/PIPL/GDPR compliant. Do not upload identifiable patient data into shared or public environments until a deployment has been legally and technically reviewed.
 
 Clinical functions are intentionally described as:
 
@@ -80,7 +80,7 @@ See [docs/LEGAL_NOTICES.md](docs/LEGAL_NOTICES.md). This draft must be reviewed 
 
 ## Media attributions
 
-See [docs/MEDIA_ATTRIBUTIONS.md](docs/MEDIA_ATTRIBUTIONS.md). Public demo media must be replaced with de-identified, authorized teaching materials before production use.
+See [docs/MEDIA_ATTRIBUTIONS.md](docs/MEDIA_ATTRIBUTIONS.md). Public landing media must be replaced with de-identified, authorized teaching materials before production use.
 
 ## Open-source maintenance
 

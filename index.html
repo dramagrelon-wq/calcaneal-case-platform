@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=27">
+    <link rel="stylesheet" href="styles.css?v=28">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -16,27 +16,37 @@
           <p class="eyebrow">跟骨骨折病例平台</p>
           <strong>Calcaneal Case</strong>
         </div>
-        <button class="ghost-button" id="welcomeEnterTop">进入病例系统</button>
+        <button class="ghost-button" id="welcomeEnterTop">医生入口</button>
       </header>
 
       <main class="welcome-hero">
         <section class="welcome-copy">
           <p class="eyebrow">Case · Imaging · Teaching · Follow-up</p>
-          <h1 class="hero-title" aria-label="跟骨骨折病例、影像测量、教学讨论、跟踪随访，一个清爽的平台">
-            <span>跟骨骨折病例</span>
-            <span>影像测量</span>
-            <span>教学讨论</span>
-            <span>跟踪随访</span>
-            <span class="hero-title-sub">一个清爽的平台</span>
+          <h1 class="hero-title" aria-label="跟骨骨折病例平台：病例、影像测量、教学讨论、跟踪随访">
+            <span>跟骨骨折</span>
+            <span>病例平台</span>
+            <span class="hero-title-sub">病例 · 影像测量 · 教学讨论 · 跟踪随访</span>
           </h1>
-          <p>从病例采集、影像矫正、角度测量、分型记录到随访提醒，帮助医生把真实病例变成可以复盘、可以教学、可以科研积累的结构化资料。</p>
+          <p>面向处理跟骨骨折的骨科医生，把病例采集、影像矫正、角度测量、分型记录、病例讨论和随访提醒放进同一个工作台。手机浏览器可直接打开，电脑端可继续整理和维护。</p>
+          <div class="mobile-entry-grid" aria-label="平台核心功能">
+            <span>病例录入</span>
+            <span>影像与测量</span>
+            <span>教学讨论</span>
+            <span>随访管理</span>
+          </div>
+          <div class="trust-strip" aria-label="移动端和准入说明">
+            <span>手机网页/PWA</span>
+            <span>实名医生准入</span>
+            <span>本机私密随访信息</span>
+            <span>公开前去标识化</span>
+          </div>
           <div class="welcome-actions">
-            <button class="primary-button" id="welcomeEnterMain">进入病例系统</button>
-            <button class="ghost-button" id="playIntro">播放介绍</button>
+            <button class="primary-button" id="welcomeEnterMain">进入医生工作台</button>
+            <button class="ghost-button" id="playIntro">查看平台导览</button>
           </div>
         </section>
 
-        <section class="intro-video" aria-label="平台介绍视频">
+        <section class="intro-video" aria-label="平台导览">
           <div class="video-frame">
             <div class="video-screen">
               <div class="intro-media-stage" aria-label="公开影像素材导览">
@@ -46,7 +56,7 @@
                   <img class="intro-media" data-intro-step="2" src="https://commons.wikimedia.org/wiki/Special:FilePath/Bohler%27s_angle_%28raster%29.jpg?width=900" alt="Böhler 角公开教学图">
                   <img class="intro-media" data-intro-step="3" src="https://commons.wikimedia.org/wiki/Special:FilePath/Gissane.jpg?width=900" alt="Gissane 角公开教学图">
                   <img class="intro-media" data-intro-step="4" src="https://commons.wikimedia.org/wiki/Special:FilePath/Calcaneus_animation01.gif" alt="跟骨三维解剖动画">
-                  <div class="media-badge">公开影像素材</div>
+                  <div class="media-badge">平台导览</div>
                 </div>
                 <div class="media-strip" aria-label="介绍片段">
                   <button class="media-thumb active" type="button" data-intro-step="0">
@@ -94,11 +104,11 @@
           </div>
         </section>
 
-        <section class="welcome-details" aria-label="平台使用和维护说明">
+        <section class="welcome-details" aria-label="平台使用说明">
           <article>
-            <h2>平台怎么用</h2>
+            <h2>医生怎么用</h2>
             <ol>
-              <li>医生完成实名注册和资质审核后进入病例系统。</li>
+              <li>医生完成实名注册和资质审核后进入病例工作台。</li>
               <li>新建病例，选择私有、管理员可见、圈内教学、公开教学或多中心研究。</li>
               <li>上传术前、术中、术后和随访影像，做四点矫正、黑白增强和角度测量。</li>
               <li>记录 Essex-Lopresti、Sanders、Zwipp、骨折脱位型和分型补充。</li>
@@ -106,13 +116,13 @@
             </ol>
           </article>
           <article>
-            <h2>项目怎么一起维护</h2>
+            <h2>手机端怎么用</h2>
             <ol>
-              <li>项目负责人每周在 GitHub Issues 发一个小主题。</li>
-              <li>讲师和维护者在 issue 下面评论临床建议、字段建议和隐私风险。</li>
-              <li>只提交脱敏示例、流程建议和界面反馈，不把真实患者资料放进公开仓库。</li>
-              <li>把有效评论整理成下一版任务，让 Codex 帮忙更新原型、文档和测试。</li>
-              <li>每 1-2 周做一次小发布，形成持续维护记录。</li>
+              <li>用手机浏览器打开平台，完成医生准入后即可进入病例工作台。</li>
+              <li>拍摄或上传影像时先做去标识化检查，再归类到术前、术中、术后或随访。</li>
+              <li>手机端适合采集、查看、讨论和随访记录；复杂批量整理可回到电脑端继续做。</li>
+              <li>可添加到手机主屏幕，作为接近 App 的入口使用。</li>
+              <li>正式联网部署前，真实病例仍应按团队审核、伦理和隐私规则处理。</li>
             </ol>
           </article>
         </section>
@@ -199,7 +209,7 @@
             我已阅读并同意实名制注册、资质审核、去标识化上传、隐私保护、平台使用边界和违规追责告知
           </label>
         </div>
-        <p class="access-warning">正式部署时，这一步必须由服务端保存、审核和放行；前端本地提交只用于原型演示。</p>
+        <p class="access-warning">当前网页版本只在本机保存准入资料；正式团队审核上线后，这一步应由服务端完成保存、审核、放行和审计。</p>
         <div class="access-actions">
           <button class="primary-button" type="submit">提交资质并进入</button>
           <span id="accessStatus">未提交</span>
@@ -363,15 +373,31 @@
                   <strong>软组织损伤</strong>
                 </div>
                 <div class="soft-tissue-options wide">
-                  <label><input type="checkbox" id="softTissueSwelling"> 明显肿胀</label>
-                  <label><input type="checkbox" id="softTissueBlister"> 水泡、血泡</label>
-                  <label><input type="checkbox" id="softTissueOpenWound"> 开放性骨折</label>
-                  <label><input type="checkbox" id="softTissueCompartment"> 骨筋膜室综合征</label>
+                  <label>
+                    <span><input type="checkbox" id="softTissueSwelling"> 明显肿胀</span>
+                    <input id="softTissueSwellingDetail" placeholder="肿胀程度、张力、皮纹情况">
+                  </label>
+                  <label>
+                    <span><input type="checkbox" id="softTissueWaterBlister"> 水泡</span>
+                    <input id="softTissueWaterBlisterDetail" placeholder="部位、范围、是否破溃">
+                  </label>
+                  <label>
+                    <span><input type="checkbox" id="softTissueBloodBlister"> 血泡</span>
+                    <input id="softTissueBloodBlisterDetail" placeholder="部位、范围、皮肤张力">
+                  </label>
+                  <label>
+                    <span><input type="checkbox" id="softTissueOpenWound"> 开放性骨折</span>
+                    <input id="softTissueOpenWoundDetail" placeholder="伤口部位、污染、Gustilo 分型">
+                  </label>
+                  <label>
+                    <span><input type="checkbox" id="softTissueCompartment"> 骨筋膜室综合征</span>
+                    <input id="softTissueCompartmentDetail" placeholder="临床表现、压力、处理情况">
+                  </label>
+                  <label>
+                    <span><input type="checkbox" id="softTissueOther"> 其他软组织损伤</span>
+                    <input id="softTissueOtherDetail" placeholder="皮肤坏死、挫裂伤、污染、张力性改变等">
+                  </label>
                 </div>
-                <label class="wide">
-                  其他软组织损伤
-                  <input id="injurySoftTissueDetail" placeholder="皮肤坏死、挫裂伤、污染、张力性改变等">
-                </label>
                 <label>
                   <span><input type="checkbox" id="injurySpine"> 脊柱</span>
                   <input id="injurySpineDetail" placeholder="具体节段、骨折或神经症状">
@@ -702,7 +728,7 @@
                       </select>
                     </label>
                     <p class="helper-text">正式版会先自动生成已脱敏副本，原始图只临时用于处理，不进入病例库；自动审核不确定时，再提示医生手动遮挡。</p>
-                    <p class="helper-text">当前原型可手动拖出矩形遮挡姓名、号码、二维码、患者信息栏或屏幕反光区域；遮挡框可拖动、调整和删除，确认后再应用保存。</p>
+                    <p class="helper-text">当前网页版本可手动拖出矩形遮挡姓名、号码、二维码、患者信息栏或屏幕反光区域；遮挡框可拖动、调整和删除，确认后再应用保存。</p>
                     <div class="tool-grid three-column-tools">
                       <button id="applyMaskRectangles" class="tool-button" type="button">应用遮挡</button>
                       <button id="deleteMaskRectangle" class="tool-button" type="button">删除选中框</button>
@@ -925,7 +951,7 @@
           <span>自动合计</span>
           <strong id="scoreTotal">0</strong>
         </div>
-        <p class="helper-text">当前为原型录入结构，正式临床使用前需核对量表授权、版本和计分规则。</p>
+        <p class="helper-text">当前为结构化录入版本，正式临床使用前需核对量表授权、版本和计分规则。</p>
         <div class="dialog-actions">
           <button class="ghost-button" id="clearScoreDraft" type="button">不选择评分</button>
           <button class="primary-button" id="applyScoreDraft" type="button">写入功能评分</button>
@@ -980,6 +1006,6 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=27"></script>
+    <script src="app.js?v=28"></script>
   </body>
 </html>
