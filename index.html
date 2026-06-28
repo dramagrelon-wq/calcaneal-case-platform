@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=28">
+    <link rel="stylesheet" href="styles.css?v=29">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -27,7 +27,7 @@
             <span>病例平台</span>
             <span class="hero-title-sub">病例 · 影像测量 · 教学讨论 · 跟踪随访</span>
           </h1>
-          <p>面向处理跟骨骨折的骨科医生，把病例采集、影像矫正、角度测量、分型记录、病例讨论和随访提醒放进同一个工作台。手机浏览器可直接打开，电脑端可继续整理和维护。</p>
+          <p>面向处理跟骨骨折的骨科医生，把病例采集、影像矫正、角度测量、分型记录、病例讨论和随访提醒放进同一个工作台。</p>
           <div class="mobile-entry-grid" aria-label="平台核心功能">
             <span>病例录入</span>
             <span>影像与测量</span>
@@ -797,6 +797,7 @@
                 </div>
                 <div class="measurement-actions measurement-confirm-actions">
                   <button id="saveActiveMeasurement" class="tool-button" type="button">保存测量图</button>
+                  <button id="cancelMeasurementEdit" class="tool-button hidden-field" type="button">取消修改</button>
                   <button id="deleteActiveMeasurement" class="tool-button" type="button">删除测量</button>
                   <button id="exitMeasurementMode" class="tool-button" type="button">退出测量</button>
                 </div>
@@ -1006,6 +1007,6 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=28"></script>
+    <script src="app.js?v=29"></script>
   </body>
 </html>

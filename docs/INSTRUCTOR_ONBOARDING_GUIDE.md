@@ -2,6 +2,8 @@
 
 这份文档可以直接发给 2-4 位内部讲师。目标是让大家用最简单的方式参与项目维护，不要求会写代码。
 
+首轮内部试运行的具体安排见 [PILOT_RUNBOOK.md](PILOT_RUNBOOK.md)。如果要直接发群，可以复制 [PILOT_GROUP_MESSAGE.md](PILOT_GROUP_MESSAGE.md)。
+
 ## 你需要做什么
 
 每周只需要完成一件小事，5-15 分钟即可：

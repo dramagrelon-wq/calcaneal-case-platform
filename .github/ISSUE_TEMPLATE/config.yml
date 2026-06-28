@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Privacy or security concern
-    url: https://github.com/
-    about: Do not post patient-identifiable information publicly. Contact maintainers privately.
+  - name: 隐私或安全问题
+    url: https://github.com/dramagrelon-wq/calcaneal-case-platform/security/advisories/new
+    about: 不要公开发布患者可识别资料；敏感问题请通过私密安全通道联系维护者。

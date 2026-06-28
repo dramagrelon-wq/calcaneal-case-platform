@@ -1,32 +1,32 @@
-name: Clinical field suggestion
-description: Suggest a case-entry, classification, measurement, or follow-up field.
-title: "[Clinical Field] "
+name: 临床字段建议
+description: 建议病例录入、分型、测量、随访或合并伤字段。
+title: "[临床字段] "
 labels: ["clinical-field", "needs-clinical-review"]
 body:
   - type: textarea
     id: suggestion
     attributes:
-      label: Suggested field or change
-      placeholder: Example: Add skin and soft tissue condition before surgery.
+      label: 建议增加或修改什么
+      placeholder: 例如：在病例录入中增加术前皮肤软组织条件。
     validations:
       required: true
   - type: textarea
     id: reason
     attributes:
-      label: Clinical reason
-      description: Why does this matter in real clinical work?
+      label: 临床原因
+      description: 这个字段为什么对真实临床工作有价值？
     validations:
       required: true
   - type: dropdown
     id: burden
     attributes:
-      label: Doctor input burden
+      label: 医生填写负担
       options:
-        - Low
-        - Medium
-        - High
+        - 低
+        - 中
+        - 高
   - type: textarea
     id: privacy
     attributes:
-      label: Privacy or ethics concern
-      description: Does this field increase privacy, ethics, or legal risk?
+      label: 隐私或伦理风险
+      description: 这个字段是否会增加隐私、伦理或法律风险？

@@ -1,33 +1,33 @@
-name: Product feedback
-description: Suggest a usability, workflow, teaching, or maintenance improvement.
-title: "[Product] "
+name: 产品体验反馈
+description: 反馈界面、流程、教学讨论或维护体验问题。
+title: "[产品体验] "
 labels: ["product-feedback"]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: Problem
-      description: What feels confusing, slow, missing, or hard to use?
+      label: 遇到的问题
+      description: 哪里让你觉得困惑、慢、缺失或不好用？
     validations:
       required: true
   - type: textarea
     id: suggestion
     attributes:
-      label: Suggested improvement
-      description: What should be changed?
+      label: 建议怎么改
+      description: 你希望它变成什么样？
     validations:
       required: true
   - type: dropdown
     id: area
     attributes:
-      label: Area
+      label: 所属模块
       options:
-        - Case entry
-        - Imaging
-        - Measurement
-        - Classification
-        - Follow-up
-        - Discussion
-        - Administrator teaching
-        - Research workflow
-        - Other
+        - 病例录入
+        - 影像处理
+        - 测量
+        - 分型
+        - 随访
+        - 病例讨论
+        - 管理员教学
+        - 研究流程
+        - 其他

@@ -1,34 +1,34 @@
-name: Teaching case idea
-description: Suggest a de-identified calcaneal fracture teaching case idea.
-title: "[Teaching Case] "
+name: 脱敏教学病例思路
+description: 提交一个完全脱敏的跟骨骨折教学病例方向，不要上传真实患者身份资料。
+title: "[教学病例] "
 labels: ["teaching-case", "clinical-review"]
 body:
   - type: markdown
     attributes:
       value: |
-        Do not upload identifiable patient information, original patient images, names, phone numbers, ID numbers, inpatient numbers, QR codes, or medical record numbers.
+        请不要上传可识别患者信息、未脱敏原始影像、姓名、电话、身份证号、住院号、检查号、二维码、病历号或含 PACS 信息条的截图。
   - type: textarea
     id: case_type
     attributes:
-      label: Case type
-      description: What kind of calcaneal fracture case is this?
-      placeholder: Example: joint depression type with posterior facet collapse
+      label: 病例类型
+      description: 这是哪一类跟骨骨折病例？
+      placeholder: 例如：关节压缩型，后关节面塌陷明显
     validations:
       required: true
   - type: textarea
     id: teaching_value
     attributes:
-      label: Teaching value
-      description: Why is this case useful for teaching?
+      label: 教学价值
+      description: 这个病例为什么值得教学讨论？
     validations:
       required: true
   - type: textarea
     id: imaging_needed
     attributes:
-      label: Imaging stages needed
-      description: Preoperative, intraoperative, postoperative, follow-up, or other imaging?
+      label: 需要展示的影像阶段
+      description: 术前、术中、术后、随访或其他影像？
   - type: textarea
     id: privacy_notes
     attributes:
-      label: Privacy notes
-      description: What must be removed or hidden before this can be shared?
+      label: 脱敏注意点
+      description: 这个病例在分享前需要删除或遮挡哪些信息？

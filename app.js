@@ -346,6 +346,7 @@ const els = {
   resetPoints: $("#resetPoints"),
   measurementButtons: $$("[data-start-measurement]"),
   saveActiveMeasurement: $("#saveActiveMeasurement"),
+  cancelMeasurementEdit: $("#cancelMeasurementEdit"),
   deleteActiveMeasurement: $("#deleteActiveMeasurement"),
   exitMeasurementMode: $("#exitMeasurementMode"),
   ctMeasurementPanel: $("#ctMeasurementPanel"),
@@ -1758,6 +1759,8 @@ function syncMeasurementUi(current = activeCase()) {
   els.measurementReadoutLabel.textContent = activeMeasurementType ? `当前测量：${labelForMeasurement(activeMeasurementType)}` : "阅片模式";
   els.measurementHelp.textContent = measurementHelpText(view);
   els.saveActiveMeasurement.disabled = !activeMeasurementType;
+  els.saveActiveMeasurement.textContent = editingMeasurementId ? "保存修改" : "保存测量图";
+  els.cancelMeasurementEdit?.classList.toggle("hidden-field", !editingMeasurementId);
   els.deleteActiveMeasurement.disabled = !activeMeasurementType && !editingMeasurementId;
   els.exitMeasurementMode.disabled = !activeMeasurementType;
 }
@@ -3235,6 +3238,7 @@ function wireEvents() {
     button.addEventListener("click", () => startMeasurement(button.dataset.startMeasurement, button.dataset.measurementView));
   });
   els.saveActiveMeasurement?.addEventListener("click", () => saveMeasurement(activeMeasurementType));
+  els.cancelMeasurementEdit?.addEventListener("click", cancelMeasurementEdit);
   els.deleteActiveMeasurement?.addEventListener("click", deleteActiveMeasurementRecord);
   els.exitMeasurementMode?.addEventListener("click", () => exitMeasurementMode());
   els.measurementList.addEventListener("click", (event) => {
@@ -3669,6 +3673,21 @@ function deleteActiveMeasurementRecord() {
   activeMeasurementType = null;
   syncMeasurementUi();
   drawMeasure();
+}
+
+function cancelMeasurementEdit() {
+  if (!editingMeasurementId) {
+    exitMeasurementMode();
+    return;
+  }
+  activeMeasurementType = null;
+  editingMeasurementId = null;
+  measurePoints = [];
+  gestureAdjustMode = true;
+  if (els.gestureAdjustMode) els.gestureAdjustMode.checked = true;
+  renderMeasurements();
+  drawMeasure();
+  markSaved("已取消测量修改");
 }
 
 function saveCtDepression() {

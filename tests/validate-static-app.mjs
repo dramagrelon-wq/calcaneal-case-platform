@@ -12,6 +12,9 @@ const requiredFiles = [
   "docs/LEGAL_NOTICES.md",
   "docs/MEDIA_ATTRIBUTIONS.md",
   "docs/CODEX_OSS_APPLICATION.md",
+  "docs/PILOT_RUNBOOK.md",
+  "docs/PILOT_GROUP_MESSAGE.md",
+  "docs/SHARED_STORAGE_PLAN.md",
   "docs/GITHUB_OWNER_SETUP.md",
   "docs/INSTRUCTOR_ONBOARDING_GUIDE.md",
   "docs/MAINTENANCE_SCHEDULE.md",
@@ -22,6 +25,7 @@ const requiredFiles = [
   ".github/ISSUE_TEMPLATE/teaching_case.yml",
   ".github/ISSUE_TEMPLATE/clinical_field.yml",
   ".github/ISSUE_TEMPLATE/product_feedback.yml",
+  ".github/ISSUE_TEMPLATE/privacy_review.yml",
   ".github/PULL_REQUEST_TEMPLATE.md",
   "sample-data/cases.csv"
 ];
@@ -136,6 +140,7 @@ const htmlChecks = [
   "跟骨侧位",
   "跟骨轴位",
   "保存测量图",
+  "取消修改",
   "退出测量",
   "分型建议",
   "骨折脱位型",
@@ -175,6 +180,7 @@ const appChecks = [
   "measurementView",
   "startMeasurement",
   "exitMeasurementMode",
+  "cancelMeasurementEdit",
   "deleteSelectedImages",
   "确定删除选中的",
   "applyBulkImageCategory",

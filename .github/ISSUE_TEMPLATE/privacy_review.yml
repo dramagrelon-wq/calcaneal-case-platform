@@ -1,0 +1,36 @@
+name: 隐私与脱敏风险
+description: 反馈病例、影像、讨论或导出流程中的隐私风险。
+title: "[隐私风险] "
+labels: ["privacy", "needs-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请不要在这里粘贴真实患者姓名、电话、身份证号、住院号、检查号、二维码、未脱敏影像或完整病历。只描述风险类型和所在流程。
+  - type: dropdown
+    id: area
+    attributes:
+      label: 风险出现在哪个环节
+      options:
+        - 病例录入
+        - 影像上传
+        - 影像清理/遮挡
+        - 病例讨论
+        - 可见范围
+        - 导出/导入
+        - 管理员审核
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: 风险描述
+      description: 请说明可能泄露什么信息，以及医生在什么操作下容易遇到。
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 建议处理方式
+      description: 例如增加提醒、自动检查、强制遮挡、管理员复核或禁止公开。

@@ -1494,6 +1494,10 @@ textarea:focus {
   font-size: 13px;
 }
 
+#measurePanel {
+  order: -1;
+}
+
 .tool-group {
   display: grid;
   gap: 10px;
