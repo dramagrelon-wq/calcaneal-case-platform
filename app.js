@@ -54,6 +54,7 @@ let introStep = 0;
 let introPlaying = false;
 let largeStorageWarningShown = false;
 let largeStorageWriteQueues = {};
+let patientOcrDraft = {};
 
 const introSteps = [
   ["术前 X 线", "先把脱敏后的 X 线和 CT 放进同一条病例时间线，后面才能讨论分型、复位和随访。"],
@@ -64,7 +65,7 @@ const introSteps = [
 ];
 
 const tutorialGuides = {
-  overview: ["Case Intake Guide", "如何录入一个跟骨骨折病例", "先完成病例编号、受伤机制、合并损伤和隐私检查。病例可见范围在左侧病例卡片中选择，字段变更会自动保存，也可以点“保存”手动确认。"],
+  overview: ["Case Intake Guide", "如何录入一个跟骨骨折病例", "先完成病例编号、可见范围、受伤机制、合并损伤和隐私检查。病例可见范围在病例页直接选择，字段变更会自动保存，也可以点“保存”手动确认。"],
   classify: ["Classification Guide", "如何完成分型记录", "Essex-Lopresti、Sanders 和 Zwipp 作为同等重要的记录入口填写，最后再补充骨折脱位型和特殊情况。"],
   images: ["Image Workspace Guide", "如何上传、整理和阅片", "影像默认按术前、术中、术后即刻和随访排列。点击缩略图只是在中间看片；需要归类或删除时点左侧“整理”，需要测量时再主动选择测量项目。"],
   measure: ["Measurement Guide", "如何做影像测量", "测量已经合并到影像页。默认是阅片模式，只有选择 Böhler 角、Gissane 角、轴位内外翻或自定义角度后，点击影像才会记录测量点。"],
@@ -287,6 +288,10 @@ const els = {
   },
   privacyPill: $("#privacyPill"),
   visibilityCards: $$("[data-visibility-card]"),
+  visibilityChoices: $$("[data-privacy-choice]"),
+  visibilityHint: $("#visibilityHint"),
+  visibilityHintTitle: $("#visibilityHintTitle"),
+  visibilityHintText: $("#visibilityHintText"),
   adminPanel: $("#adminPanel"),
   researchPanel: $("#researchPanel"),
   applyResearchAccess: $("#applyResearchAccess"),
@@ -374,6 +379,15 @@ const els = {
   scoreTotal: $("#scoreTotal"),
   clearScoreDraft: $("#clearScoreDraft"),
   applyScoreDraft: $("#applyScoreDraft"),
+  patientOcrImage: $("#patientOcrImage"),
+  patientOcrFileName: $("#patientOcrFileName"),
+  patientOcrPreview: $("#patientOcrPreview"),
+  runPatientOcr: $("#runPatientOcr"),
+  extractPatientOcrFields: $("#extractPatientOcrFields"),
+  patientOcrText: $("#patientOcrText"),
+  patientOcrSuggestions: $("#patientOcrSuggestions"),
+  applyPatientOcrFields: $("#applyPatientOcrFields"),
+  patientOcrStatus: $("#patientOcrStatus"),
   commentBody: $("#commentBody"),
   addComment: $("#addComment"),
   discussionBoard: $("#discussionBoard"),
@@ -686,6 +700,154 @@ function updatePrivateCase(key, value) {
   const local = activePrivateCase();
   local[key] = value;
   persistPrivate();
+}
+
+function setPatientOcrStatus(text) {
+  if (els.patientOcrStatus) els.patientOcrStatus.textContent = text;
+}
+
+function normalizeOcrPlainText(text = "") {
+  return String(text)
+    .replace(/[，,]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanOcrValue(value = "") {
+  return String(value)
+    .replace(/(?:性别|年龄|岁|电话|手机|身份证|证件号|住院号|病案号|门诊号|入院|出院|科室|床号).*$/i, "")
+    .replace(/[^\u4e00-\u9fa5·A-Za-z\s-]/g, "")
+    .trim();
+}
+
+function firstOcrMatch(text, patterns, cleaner = (value) => value.trim()) {
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      const value = cleaner(match[1]);
+      if (value) return value;
+    }
+  }
+  return "";
+}
+
+function extractPatientInfoFromText(text = "") {
+  const normalized = normalizeOcrPlainText(text);
+  const compact = normalized.replace(/\s+/g, "");
+  const idMatch = compact.match(/[1-9]\d{5}(?:18|19|20)?\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]/);
+  const phoneMatch = compact.match(/(?:\+?86)?1[3-9]\d{9}/);
+  const sex = firstOcrMatch(normalized, [
+    /(?:性别|Sex)[:：\s]*([男女])/i,
+    /\b([男女])\b/
+  ]);
+  const age = firstOcrMatch(normalized, [
+    /(?:年龄|Age)[:：\s]*(\d{1,3})/i,
+    /(\d{1,3})\s*岁/
+  ], (value) => {
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 && number <= 120 ? String(number) : "";
+  });
+  const patientName = firstOcrMatch(normalized, [
+    /(?:患者姓名|病人姓名|姓名|Name)[:：\s]*([\u4e00-\u9fa5·]{2,8}|[A-Za-z][A-Za-z\s.-]{1,40})/i
+  ], cleanOcrValue);
+
+  return {
+    patientName,
+    patientPhone: phoneMatch ? phoneMatch[0].replace(/^86/, "") : "",
+    patientIdNumber: idMatch ? idMatch[0].toUpperCase() : "",
+    patientSex: ["男", "女"].includes(sex) ? sex : "",
+    patientAge: age
+  };
+}
+
+function renderPatientOcrSuggestions(values = {}) {
+  patientOcrDraft = { ...values };
+  const rows = [
+    ["patientName", "姓名"],
+    ["patientPhone", "电话"],
+    ["patientIdNumber", "身份证号"],
+    ["patientSex", "性别"],
+    ["patientAge", "年龄"]
+  ].filter(([key]) => values[key]);
+
+  if (!els.patientOcrSuggestions) return;
+  els.patientOcrSuggestions.classList.remove("hidden-field");
+  els.patientOcrSuggestions.innerHTML = rows.length
+    ? rows.map(([key, label]) => `
+        <label class="ocr-suggestion-row">
+          <span><input type="checkbox" data-ocr-field="${key}" checked> ${label}</span>
+          <input data-ocr-value="${key}" value="${escapeHtml(values[key])}">
+        </label>
+      `).join("")
+    : `<p class="helper-text">暂未提取到姓名、电话、身份证号、性别或年龄。可以手动整理识别文字后再提取。</p>`;
+  setPatientOcrStatus(rows.length ? "请勾选需要填入的项目，必要时先手动修正。" : "未提取到可用字段。");
+}
+
+function extractPatientOcrFields() {
+  const text = els.patientOcrText?.value || "";
+  const values = extractPatientInfoFromText(text);
+  renderPatientOcrSuggestions(values);
+}
+
+function handlePatientOcrImageChange() {
+  const file = els.patientOcrImage?.files?.[0];
+  if (!file) return;
+  els.patientOcrFileName.textContent = file.name;
+  if (els.patientOcrPreview) {
+    els.patientOcrPreview.src = URL.createObjectURL(file);
+    els.patientOcrPreview.classList.remove("hidden-field");
+  }
+  setPatientOcrStatus("已选择图片。可尝试开始识别，或用手机系统 OCR 复制文字后粘贴。");
+}
+
+async function runPatientOcr() {
+  const file = els.patientOcrImage?.files?.[0];
+  if (!file) {
+    setPatientOcrStatus("请先拍摄或上传病例首页图片。");
+    return;
+  }
+  if (!("TextDetector" in window) || !window.TextDetector) {
+    setPatientOcrStatus("当前浏览器没有可用的本机 OCR 引擎。请用手机相册/系统 OCR 复制文字，粘贴到识别文字框后点“从文字提取”。");
+    return;
+  }
+  try {
+    setPatientOcrStatus("正在本机识别，请稍候...");
+    const bitmap = await createImageBitmap(file);
+    const detector = new window.TextDetector();
+    const results = await detector.detect(bitmap);
+    bitmap.close?.();
+    const text = results.map((item) => item.rawValue || item.text || "").filter(Boolean).join("\n");
+    els.patientOcrText.value = text;
+    setPatientOcrStatus(text ? "识别完成，请确认提取字段。" : "没有识别到文字，可以换一张更清晰的照片或手动粘贴文字。");
+    extractPatientOcrFields();
+  } catch (error) {
+    setPatientOcrStatus("本机 OCR 识别失败。可以先手动粘贴文字继续提取字段。");
+  }
+}
+
+function applyPatientOcrFields() {
+  if (!els.patientOcrSuggestions) return;
+  const fieldMap = {
+    patientName: "localPatientName",
+    patientPhone: "localPatientPhone",
+    patientIdNumber: "localPatientIdNumber",
+    patientSex: "localPatientSex",
+    patientAge: "localPatientAge"
+  };
+  let applied = 0;
+  els.patientOcrSuggestions.querySelectorAll("[data-ocr-field]").forEach((checkbox) => {
+    if (!checkbox.checked) return;
+    const key = checkbox.dataset.ocrField;
+    const input = els.patientOcrSuggestions.querySelector(`[data-ocr-value="${key}"]`);
+    const value = input?.value?.trim() || patientOcrDraft[key] || "";
+    const fieldName = fieldMap[key];
+    if (!fieldName || !value) return;
+    els.fields[fieldName].value = value;
+    updatePrivateCase(key, value);
+    applied += 1;
+  });
+  setPatientOcrStatus(applied ? `已填入 ${applied} 项本地私密信息。` : "请先勾选需要填入的字段。");
+  if (applied) markSaved("OCR 信息已保存到本地私密区");
 }
 
 function mechanismTypeFromValue(value = "") {
@@ -1023,6 +1185,29 @@ function privacyLabel(value) {
   }[value] || "私有";
 }
 
+const privacyDescriptions = {
+  private: {
+    label: "私有",
+    short: "本人随访",
+    text: "仅上传医生本人可见，适合个人随访、术后复盘和暂不分享的病例。"
+  },
+  admin: {
+    label: "管理员可见",
+    short: "私下教学",
+    text: "上传医生和认证管理员可见，适合希望获得私下教学指导但不想公开的病例。"
+  },
+  team: {
+    label: "圈内教学",
+    short: "医生讨论",
+    text: "在受限医生圈内讨论和教学，适合已经脱敏、希望获得更多同道意见的病例。"
+  },
+  public: {
+    label: "公开教学",
+    short: "脱敏展示",
+    text: "对通过准入的医生公开展示，适合质量较高、已充分去标识化的教学病例。"
+  }
+};
+
 function normalizePrivacyLevel(value = "private") {
   return ["private", "admin", "team", "public"].includes(value) ? value : "private";
 }
@@ -1039,10 +1224,44 @@ function privacyOptions(selected = "private") {
 
 function syncVisibilityUi(value) {
   const normalized = normalizePrivacyLevel(value);
+  const detail = privacyDescriptions[normalized] || privacyDescriptions.private;
   els.privacyPill.textContent = privacyLabel(normalized);
   els.visibilityCards.forEach((card) => {
-    card.classList.toggle("active", card.dataset.visibilityCard === normalized);
+    const active = card.dataset.visibilityCard === normalized;
+    card.classList.toggle("active", active);
+    if (card.matches("[role='radio']")) card.setAttribute("aria-checked", active ? "true" : "false");
   });
+  if (els.visibilityHintTitle) els.visibilityHintTitle.textContent = detail.label;
+  if (els.visibilityHintText) els.visibilityHintText.textContent = detail.text;
+}
+
+function applyCasePrivacy(item, value) {
+  if (!item) return false;
+  const nextPrivacy = normalizePrivacyLevel(value);
+  const previousPrivacy = normalizePrivacyLevel(item.privacyLevel);
+  syncVisibilityUi(nextPrivacy);
+  if (nextPrivacy === previousPrivacy) return true;
+  if (nextPrivacy !== "private" && previousPrivacy === "private") {
+    const confirmed = window.confirm("病例即将进入管理员可见、圈内教学或公开范围。请确认已经去除患者姓名、电话、身份证号、住院号、检查号、二维码等可识别信息。");
+    if (!confirmed) {
+      syncVisibilityUi(previousPrivacy);
+      return false;
+    }
+    item.privacyChecks ||= {};
+    item.privacyChecks.deidentified = true;
+    if (item.id === state.activeCaseId) els.fields.privacyConfirmed.checked = true;
+  }
+  item.privacyLevel = nextPrivacy;
+  item.updatedAt = new Date().toISOString();
+  persist();
+  if (item.id === state.activeCaseId) {
+    els.fields.privacyLevel.value = item.privacyLevel;
+    syncVisibilityUi(item.privacyLevel);
+  }
+  renderCaseList();
+  renderDiscussionBoard();
+  markSaved(`已设为${privacyLabel(item.privacyLevel)}`);
+  return true;
 }
 
 function researchStatusText(research = {}) {
@@ -1139,12 +1358,7 @@ function renderCaseList() {
           <span class="case-tags">${tags.map((tag) => `<em>${escapeHtml(tag)}</em>`).join("")}</span>
         </button>
         <div class="case-controls">
-          <label class="case-privacy-control">
-            可见范围
-            <select data-case-privacy="${item.id}" aria-label="${escapeHtml(item.code)} 可见范围">
-              ${privacyOptions(item.privacyLevel)}
-            </select>
-          </label>
+          <span class="case-privacy-badge">${escapeHtml(privacyLabel(item.privacyLevel))}</span>
           <button class="case-delete" type="button" data-delete-case="${item.id}">删除病例</button>
         </div>
       </article>
@@ -2895,24 +3109,8 @@ function wireEvents() {
     if (!select) return;
     const item = state.cases.find((caseItem) => caseItem.id === select.dataset.casePrivacy);
     if (!item) return;
-    const nextPrivacy = normalizePrivacyLevel(select.value);
-    if (nextPrivacy !== "private" && item.privacyLevel === "private") {
-      const confirmed = window.confirm("病例即将进入管理员可见、圈内教学或公开范围。请确认已经去除患者姓名、电话、身份证号、住院号、检查号、二维码等可识别信息。");
-      if (!confirmed) {
-        select.value = item.privacyLevel;
-        return;
-      }
-      item.privacyChecks ||= {};
-      item.privacyChecks.deidentified = true;
-    }
-    item.privacyLevel = nextPrivacy;
-    item.updatedAt = new Date().toISOString();
-    persist();
-    if (item.id === state.activeCaseId) {
-      els.fields.privacyLevel.value = item.privacyLevel;
-      syncVisibilityUi(item.privacyLevel);
-    }
-    renderCaseList();
+    const applied = applyCasePrivacy(item, select.value);
+    if (!applied) select.value = item.privacyLevel;
   });
 
   els.tabs.forEach((tab) => {
@@ -2941,6 +3139,20 @@ function wireEvents() {
     persistPrivate();
     markSaved("已保存当前病例");
   });
+
+  els.visibilityChoices.forEach((button) => {
+    button.addEventListener("click", () => {
+      const current = activeCase();
+      if (!current) return;
+      const applied = applyCasePrivacy(current, button.dataset.privacyChoice);
+      if (!applied) els.fields.privacyLevel.value = current.privacyLevel;
+    });
+  });
+
+  els.patientOcrImage?.addEventListener("change", handlePatientOcrImageChange);
+  els.runPatientOcr?.addEventListener("click", runPatientOcr);
+  els.extractPatientOcrFields?.addEventListener("click", extractPatientOcrFields);
+  els.applyPatientOcrFields?.addEventListener("click", applyPatientOcrFields);
 
   const directFields = ["caseCode", "ageBand", "sex", "side", "threeStepNotes"];
   directFields.forEach((key) => {

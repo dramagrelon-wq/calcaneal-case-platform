@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#176b6a">
     <meta name="description" content="跟骨骨折病例录入、影像处理、角度测量、分型建议与病例讨论系统">
     <link rel="manifest" href="manifest.webmanifest">
-    <link rel="stylesheet" href="styles.css?v=29">
+    <link rel="stylesheet" href="styles.css?v=30">
     <title>Calcaneal Case</title>
   </head>
   <body>
@@ -273,7 +273,7 @@
             <div class="tutorial-copy">
               <p class="eyebrow" id="tutorialEyebrow">Case Intake Guide</p>
               <h3 id="tutorialTitle">如何录入一个跟骨骨折病例</h3>
-              <p id="tutorialText">先完成病例编号、受伤机制、合并损伤和隐私检查，病例可见范围在左侧病例卡片中选择，系统会自动保存当前病例。</p>
+              <p id="tutorialText">先完成病例编号、可见范围、受伤机制、合并损伤和隐私检查，字段变更会自动保存，也可以点“保存”手动确认。</p>
             </div>
           </section>
 
@@ -365,6 +365,35 @@
               </label>
             </div>
 
+            <div class="visibility-selector-panel">
+              <div class="section-subheading">
+                <h3>病例可见范围</h3>
+                <span class="helper-text">点击选项后直接显示含义；进入教学或公开范围前会再次做脱敏确认。</span>
+              </div>
+              <div class="visibility-choice-row" role="radiogroup" aria-label="病例可见范围">
+                <button class="visibility-choice" type="button" data-visibility-card="private" data-privacy-choice="private" role="radio" aria-checked="false">
+                  <strong>私有</strong>
+                  <span>本人随访</span>
+                </button>
+                <button class="visibility-choice" type="button" data-visibility-card="admin" data-privacy-choice="admin" role="radio" aria-checked="false">
+                  <strong>管理员可见</strong>
+                  <span>私下教学</span>
+                </button>
+                <button class="visibility-choice" type="button" data-visibility-card="team" data-privacy-choice="team" role="radio" aria-checked="false">
+                  <strong>圈内教学</strong>
+                  <span>医生讨论</span>
+                </button>
+                <button class="visibility-choice" type="button" data-visibility-card="public" data-privacy-choice="public" role="radio" aria-checked="false">
+                  <strong>公开教学</strong>
+                  <span>脱敏展示</span>
+                </button>
+              </div>
+              <div class="visibility-popover" id="visibilityHint" aria-live="polite">
+                <strong id="visibilityHintTitle">私有</strong>
+                <p id="visibilityHintText">仅上传医生本人可见，适合个人随访、术后复盘和暂不分享的病例。</p>
+              </div>
+            </div>
+
             <div class="structured-injury-panel">
               <h3>合并损伤</h3>
               <p class="helper-text">没有合并损伤可以留空；如有，请勾选部位并补充具体内容。</p>
@@ -421,33 +450,37 @@
               </div>
             </div>
 
-            <div class="visibility-guide">
-              <h3>病例可见范围说明</h3>
-              <p class="helper-text">实际可见范围请在左侧病例卡片中选择；这里用于说明各范围的含义。</p>
-              <div class="visibility-options">
-                <article data-visibility-card="private">
-                  <strong>私有</strong>
-                  <p>仅上传医生本人可见，适合个人随访、术后复盘和暂不分享的病例。</p>
-                </article>
-                <article data-visibility-card="admin">
-                  <strong>管理员可见</strong>
-                  <p>上传医生和认证管理员可见，适合希望获得私下教学指导但不想公开的病例。</p>
-                </article>
-                <article data-visibility-card="team">
-                  <strong>圈内教学</strong>
-                  <p>在受限医生圈内讨论和教学，适合已经脱敏、希望获得更多同道意见的病例。</p>
-                </article>
-                <article data-visibility-card="public">
-                  <strong>公开教学</strong>
-                  <p>对通过准入的医生公开展示，适合质量较高、已充分去标识化的教学病例。</p>
-                </article>
-              </div>
-            </div>
-
             <div class="local-private-panel">
               <div>
                 <h3>医生本地私密随访信息</h3>
                 <p>这些信息属于医生本人随访记录，只保存在当前设备和浏览器的本地存储；不进入普通病例导出，也不用于公开、圈内讨论或多中心研究展示。清理浏览器或更换设备可能导致丢失，正式部署时应增加加密、授权和删除机制。</p>
+              </div>
+              <div class="patient-ocr-panel">
+                <div class="section-subheading">
+                  <h4>病例首页 OCR</h4>
+                  <span class="helper-text">拍摄病案首页后在本机识别，勾选确认后填入下方私密随访信息。</span>
+                </div>
+                <div class="ocr-controls">
+                  <label class="file-upload-label">
+                    拍摄/上传首页
+                    <input id="patientOcrImage" type="file" accept="image/*" capture="environment">
+                    <span id="patientOcrFileName">未选择</span>
+                  </label>
+                  <button class="tool-button" id="runPatientOcr" type="button">开始识别</button>
+                  <button class="tool-button" id="extractPatientOcrFields" type="button">从文字提取</button>
+                </div>
+                <div class="ocr-preview-grid">
+                  <img id="patientOcrPreview" class="ocr-preview hidden-field" alt="病例首页 OCR 预览">
+                  <label class="wide">
+                    识别文字
+                    <textarea id="patientOcrText" rows="5" placeholder="OCR 识别结果会出现在这里，也可以手动粘贴病案首页文字后点“从文字提取”。"></textarea>
+                  </label>
+                </div>
+                <div class="ocr-suggestions hidden-field" id="patientOcrSuggestions" aria-live="polite"></div>
+                <div class="ocr-actions">
+                  <button class="primary-button" id="applyPatientOcrFields" type="button">填入本地私密信息</button>
+                  <span class="helper-text" id="patientOcrStatus">当前不会把病例首页图片上传到公开讨论区。</span>
+                </div>
               </div>
               <div class="form-grid">
                 <label>
@@ -1007,6 +1040,6 @@
       </form>
     </dialog>
 
-    <script src="app.js?v=29"></script>
+    <script src="app.js?v=30"></script>
   </body>
 </html>
